@@ -1,0 +1,55 @@
+name: Build Unsigned IPA
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - Integration
+
+jobs:
+  build:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode.app
+
+      - name: Show Xcode version
+        run: xcodebuild -version
+
+      # 如果项目用 CocoaPods
+      - name: Install CocoaPods
+        run: |
+          sudo gem install cocoapods
+          if [ -f "Podfile" ]; then
+            pod install
+          fi
+
+      # 构建（关闭签名）
+      - name: Build App
+        run: |
+          xcodebuild \
+            -workspace VoidLink.xcworkspace \
+            -scheme VoidLink \
+            -configuration Release \
+            -sdk iphoneos \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            clean build
+
+      # 打包 IPA
+      - name: Package IPA
+        run: |
+          mkdir Payload
+          cp -r build/Release-iphoneos/*.app Payload/
+          zip -r VoidLink-unsigned.ipa Payload
+
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: VoidLink-unsigned-ipa
+          path: VoidLink-unsigned.ipa
