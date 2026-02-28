@@ -38,16 +38,17 @@ jobs:
             -scheme VoidLink \
             -configuration Release \
             -sdk iphoneos \
+            -derivedDataPath build \
             CODE_SIGNING_ALLOWED=NO \
-            CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGN_IDENTITY="" \
-            clean build
+            build
 
       # 打包 IPA
       - name: Package IPA
         run: |
+          APP_PATH=$(find build -name "*.app" | head -n 1)
+          echo "App found at $APP_PATH"
           mkdir Payload
-          cp -r build/Release-iphoneos/*.app Payload/
+          cp -r "$APP_PATH" Payload/
           zip -r VoidLink-unsigned.ipa Payload
 
       - name: Upload IPA
