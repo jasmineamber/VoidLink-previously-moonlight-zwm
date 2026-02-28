@@ -32,7 +32,7 @@ jobs:
       - name: Build App
         run: |
           xcodebuild \
-            -workspace VoidLink.xcworkspace \
+            -project VoidLink.xcodeproj \
             -scheme VoidLink \
             -configuration Release \
             -sdk iphoneos \
