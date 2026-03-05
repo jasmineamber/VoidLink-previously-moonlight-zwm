@@ -395,6 +395,7 @@ BOOL isCustomResolution(int resolutionSelected) {
     [self.squeezeShortcutSwitch setOn:oscProfile.squeezeShorcutEnabled];
     [self.pencilPausesNativeTouchSwitch setOn:oscProfile.pencilPausesNativeTouch];
     [self.disablePencilSlideGestureSwitch setOn:oscProfile.disablePencilSlideGestures];
+    self.hoverModeSelector.selectedSegmentIndex = oscProfile.pencilHoverMode;
 }
 
 - (void)saveGameProfileConfigs{
@@ -420,6 +421,7 @@ BOOL isCustomResolution(int resolutionSelected) {
                              && oscProfile.squeezeShorcutEnabled == self.squeezeShortcutSwitch.isOn
                              && oscProfile.pencilPausesNativeTouch == self.pencilPausesNativeTouchSwitch.isOn
                              && oscProfile.disablePencilSlideGestures == self.disablePencilSlideGestureSwitch.isOn
+                             && oscProfile.pencilHoverMode == self.hoverModeSelector.selectedSegmentIndex
                              );
 
     if(!configNotChanged){
@@ -441,7 +443,9 @@ BOOL isCustomResolution(int resolutionSelected) {
         oscProfile.squeezeShorcutEnabled = self.squeezeShortcutSwitch.isOn;
         oscProfile.pencilPausesNativeTouch = self.pencilPausesNativeTouchSwitch.isOn;
         oscProfile.disablePencilSlideGestures = self.disablePencilSlideGestureSwitch.isOn;
+        oscProfile.pencilHoverMode = self.hoverModeSelector.selectedSegmentIndex;
         [oscProfileMan replaceSelectedProfileWith:oscProfile overwriteDefault:YES];
+        if(PencilHandler.shared) [PencilHandler.shared setupPressureLUTWithProfile:oscProfile];
     }
 }
 
@@ -872,10 +876,10 @@ BOOL isCustomResolution(int resolutionSelected) {
                               || [bundleId isEqualToString:@"com.voidlinkextreme.iOS"]
                               || [bundleId isEqualToString:@"com.voidlink.tf.debug10.iOS"]);
 
-    if([Utils isIPad] && loadPencilSection){
+    if([GenericUtils isIPad] && loadPencilSection){
         MenuSectionView* pencilSection = [[MenuSectionView alloc] init];
         pencilSection.delegate = self;
-        pencilSection.sectionTitle = [LocalizationHelper localizedStringForKey:@"Pencil"];
+        pencilSection.sectionTitle = [LocalizationHelper localizedStringForKey:@"Drawing Toolkit"];
         pencilSection.identifier = @"SettingsSectionPencil";
         if (@available(iOS 13.0, *)) {
             [pencilSection setSectionWithIcon:[UIImage systemImageNamed:@"pencil.and.outline"] size:19 weight:UIImageSymbolWeightHeavy];
@@ -885,6 +889,7 @@ BOOL isCustomResolution(int resolutionSelected) {
         [self addSetting:self.pressureCurveStack ofId:@"pressureCurveStack" withInfoTag:NO withDynamicLabel:NO to:pencilSection];
         [self addSetting:self.doubleTapShortcutStack ofId:@"doubleTapShortcutStack" withInfoTag:YES withDynamicLabel:NO to:pencilSection];
         [self addSetting:self.squeezeShortcutStack ofId:@"squeezeShortcutStack" withInfoTag:YES withDynamicLabel:NO to:pencilSection];
+        [self addSetting:self.hoverModeStack ofId:@"hoverModeStack" withInfoTag:YES withDynamicLabel:NO to:pencilSection];
         [self addSetting:self.pencilPausesNativeTouchStack ofId:@"pencilPausesNativeTouchStack" withInfoTag:NO withDynamicLabel:NO to:pencilSection];
         [self addSetting:self.disablePencilSlideGestureStack ofId:@"disablePencilSlideGestureStack" withInfoTag:NO withDynamicLabel:NO to:pencilSection];
         [pencilSection addToParentStack:_parentStack];
@@ -1520,10 +1525,17 @@ BOOL isCustomResolution(int resolutionSelected) {
         tipText = [LocalizationHelper localizedStringForKey:@"asyncFrameDequeueStackTip"];
         showOnlineDocAction = false;
     }
+    if([sender.superview.accessibilityIdentifier isEqualToString: @"hoverModeStack"]){
+        tipText = [LocalizationHelper localizedStringForKey:@"hoverModeStackTip"];
+        showOnlineDocAction = false;
+    }
+    if([sender.superview.accessibilityIdentifier isEqualToString: @"pencilTickStack"]){
+        tipText = [LocalizationHelper localizedStringForKey:@"pencilTickStackTip"];
+        showOnlineDocAction = true;
+        onlineDocLink = [LocalizationHelper localizedStringForKey:@"PencilProPackURL"];
+    }
     
-
     UIAlertController *tipsAlertController = [UIAlertController alertControllerWithTitle: [LocalizationHelper localizedStringForKey:@"Tips"] message:tipText preferredStyle:UIAlertControllerStyleAlert];
-
     
     /*
     NSMutableParagraphStyle *paragraphStyle = [[NSMutableParagraphStyle alloc] init];
@@ -1863,7 +1875,8 @@ BOOL isCustomResolution(int resolutionSelected) {
             
             switch (self->tempSettings.preferredCodec) {
                 case CODEC_PREF_AUTO:
-                    [self.codecSelector setSelectedSegmentIndex:self.codecSelector.numberOfSegments - 1];
+                    [self.codecSelector setSelectedSegmentIndex:VTIsHardwareDecodeSupported(kCMVideoCodecType_HEVC) ? CODEC_PREF_HEVC-1 : CODEC_PREF_H264-1];
+                    [self codecSelectorChanged:self.codecSelector];
                     break;
                     
                 case CODEC_PREF_AV1:
@@ -3005,9 +3018,28 @@ BOOL isCustomResolution(int resolutionSelected) {
 }
 
 - (void)enableOswForNativeTouchSwitchFlipped:(UISwitch *)sender{
+    if(!settingsViewJustLoaded
+       && sender.isOn==false
+       && [GenericUtils isEnableOswForNativeTouchSwitchFirstFlipping]){
+        [AlertControllerUtil showAlertIn:self
+                                   title:[LocalizationHelper localizedStringForKey:@"Tips"]
+                                 message:[LocalizationHelper localizedStringForKey:@"enableOswForNativeTouchSwitchTip"]
+                              withCancel:NO
+                             buttonTitle:[LocalizationHelper localizedStringForKey:@"This tip won't be shown again"]
+                               countdown:6
+                                  action:nil
+                              completion:^{
+            [self setHidden:!sender.isOn forStack:self.onScreenWidgetStack];
+            [self setHidden:!sender.isOn forStack:self.buttonVisualFeedbackStack];
+            [self handleOswGestureChange];
+            if(!sender.isOn) self.onScreenWidgetSelector.selectedSegmentIndex = OnScreenControlsLevelOff;
+        }];
+    }
+    
     [self setHidden:!sender.isOn forStack:self.onScreenWidgetStack];
     [self setHidden:!sender.isOn forStack:self.buttonVisualFeedbackStack];
     [self handleOswGestureChange];
+    if(!sender.isOn) self.onScreenWidgetSelector.selectedSegmentIndex = OnScreenControlsLevelOff;
 }
 
 - (void)trackTouchPointSwitchFlipped:(UISwitch *)sender{
@@ -3025,8 +3057,7 @@ BOOL isCustomResolution(int resolutionSelected) {
     [[NSUserDefaults standardUserDefaults] setBool:YES forKey:key];
     [[NSUserDefaults standardUserDefaults] synchronize];
     
-    NSInteger fps = [self getChosenFrameRate];
-    [self.touchMoveEventIntervalSlider setValue: fps>60 ? 1/((CGFloat)fps)*0.5*1000000-1500 : 3530];
+    // NSInteger fps = [self getChosenFrameRate];
     [self touchMoveEventIntervalSliderMoved:self.touchMoveEventIntervalSlider];
     [self updateBitrate];
 }
@@ -3250,24 +3281,16 @@ BOOL isCustomResolution(int resolutionSelected) {
 
 - (uint32_t) getChosenCodecPreference {
     // Auto is always the last segment
-    if (self.codecSelector.selectedSegmentIndex == self.codecSelector.numberOfSegments - 1) {
-        return CODEC_PREF_AUTO;
-    }
-    else {
         switch (self.codecSelector.selectedSegmentIndex) {
             case 0:
                 return CODEC_PREF_H264;
-                
             case 1:
                 return CODEC_PREF_HEVC;
-                
             case 2:
                 return CODEC_PREF_AV1;
-                
             default:
-                abort();
+                return VTIsHardwareDecodeSupported(kCMVideoCodecType_HEVC) ? CODEC_PREF_HEVC : CODEC_PREF_H264;
         }
-    }
 }
 
 - (NSInteger) getChosenStreamHeight {
@@ -3512,13 +3535,29 @@ BOOL isCustomResolution(int resolutionSelected) {
 - (void)pencilPausesNativeTouchSwitchFlipped:(UISwitch* )sender{
     if(sender.isOn && !settingsViewJustLoaded){
         [IAPManager checkPurchaseInfo:AddOnProductPencilProPack completion:^(PurchaseInfo* info) {
-            if(!info.valid) [IAPManager inAppPurchaseActionWithViewController:self product:AddOnProductPencilProPack];
+            if(info.valid) nil;
+            else {
+                [IAPManager inAppPurchaseActionWithViewController:self product:AddOnProductPencilProPack];
+            }
         }];
     }
 }
 
+/*
+- (void)autoHoverSwitchFlipped:(UISwitch* )sender{
+    if(sender.isOn && !settingsViewJustLoaded){
+        [IAPManager checkPurchaseInfo:AddOnProductPencilProPack completion:^(PurchaseInfo* info) {
+            if(info.valid) nil;
+            else {
+                [IAPManager inAppPurchaseActionWithViewController:self product:AddOnProductPencilProPack];
+            }
+        }];
+    }
+}
+*/
+
 - (void)loadPencilSettings:(TemporarySettings*) tempSettings{
-    if([Utils isIPad]){
+    if([GenericUtils isIPad]){
         self.pencilTickSelector.selectedSegmentIndex = tempSettings.pencilTickMode.intValue;
         [self.pencilTickSelector addTarget:self action:@selector(pencilTickModeChanged:) forControlEvents:UIControlEventValueChanged];
         [self pencilTickModeChanged:self.pencilTickSelector];
@@ -3536,11 +3575,12 @@ BOOL isCustomResolution(int resolutionSelected) {
         
         [self.disablePencilSlideGestureSwitch addTarget:self action:@selector(disablePencilSlideGestureSwitchFlipped:) forControlEvents:UIControlEventValueChanged];
         [self.pencilPausesNativeTouchSwitch addTarget:self action:@selector(pencilPausesNativeTouchSwitchFlipped:) forControlEvents:UIControlEventValueChanged];
+        // [self.autoHoverTerminationSwitch addTarget:self action:@selector(autoHoverSwitchFlipped:) forControlEvents:UIControlEventValueChanged];
     }
 }
 
 - (void)populatePencilSettings:(Settings*)currentSettings{
-    if([Utils isIPad]){
+    if([GenericUtils isIPad]){
         currentSettings.pencilTickMode = @(self.pencilTickSelector.selectedSegmentIndex);
         currentSettings.pencilTickIntervalUs = @(self.pencilTickIntervalSlider.value);
     }
@@ -3741,7 +3781,7 @@ BOOL isCustomResolution(int resolutionSelected) {
     BOOL isAV1 = (codec == CODEC_PREF_AV1);
     BOOL isH264 = (codec == CODEC_PREF_H264);
     BOOL isHEVC = (codec == CODEC_PREF_HEVC);
-
+    
     if (isAV1) {
         // AV1 must use limited range, so disable fullRange and turn it off
         [self.fullColorRangeSwitch setOn:NO animated:NO];

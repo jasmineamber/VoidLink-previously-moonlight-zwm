@@ -55,7 +55,7 @@
         },
         "zh-HK" : {
           "stringUnit" : {
-            "state" : "needs_review",
+            "state" : "translated",
             "value" : "關閉"
           }
         }
@@ -115,7 +115,7 @@
         },
         "zh-HK" : {
           "stringUnit" : {
-            "state" : "needs_review",
+            "state" : "translated",
             "value" : "佇列緩衝"
           }
         }
@@ -385,7 +385,7 @@
         },
         "zh-Hans" : {
           "stringUnit" : {
-            "state" : "needs_review",
+            "state" : "translated",
             "value" : "非线性因子"
           }
         },
@@ -445,7 +445,7 @@
         },
         "zh-Hans" : {
           "stringUnit" : {
-            "state" : "needs_review",
+            "state" : "translated",
             "value" : "内置陀螺仪映射为"
           }
         },
@@ -661,7 +661,7 @@
         },
         "zh-Hans" : {
           "stringUnit" : {
-            "state" : "needs_review",
+            "state" : "translated",
             "value" : "延迟鼠标左单击"
           }
         },
@@ -1045,36 +1045,6 @@
         }
       }
     },
-    "aFy-0w-YPe.segmentTitles[3]" : {
-      "comment" : "Class = \"UISegmentedControl\"; aFy-0w-YPe.segmentTitles[3] = \"Auto\"; ObjectID = \"aFy-0w-YPe\";",
-      "extractionState" : "extracted_with_value",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "Auto"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "自动"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "自動"
-          }
-        },
-        "zh-HK" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "自動"
-          }
-        }
-      }
-    },
     "aGg-ET-e9F.text" : {
       "comment" : "Class = \"UILabel\"; text = \"Edge Trigger Sensitivity\"; ObjectID = \"aGg-ET-e9F\";",
       "extractionState" : "extracted_with_value",
@@ -1087,7 +1057,7 @@
         },
         "zh-Hans" : {
           "stringUnit" : {
-            "state" : "needs_review",
+            "state" : "translated",
             "value" : "边缘触发灵敏度"
           }
         },
@@ -1117,7 +1087,7 @@
         },
         "zh-Hans" : {
           "stringUnit" : {
-            "state" : "needs_review",
+            "state" : "translated",
             "value" : "串流帧率"
           }
         },
@@ -1219,7 +1189,7 @@
         },
         "zh-Hans" : {
           "stringUnit" : {
-            "state" : "needs_review",
+            "state" : "translated",
             "value" : "显示本地软键盘工具栏"
           }
         },
@@ -1249,7 +1219,7 @@
         },
         "zh-Hans" : {
           "stringUnit" : {
-            "state" : "needs_review",
+            "state" : "translated",
             "value" : "关闭"
           }
         },
@@ -1279,7 +1249,7 @@
         },
         "zh-Hans" : {
           "stringUnit" : {
-            "state" : "needs_review",
+            "state" : "translated",
             "value" : "启用"
           }
         },
@@ -1310,19 +1280,19 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "笔压曲线"
+            "value" : "压力曲线"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "筆壓曲線"
+            "value" : "壓力曲線"
           }
         },
         "zh-HK" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "筆壓曲線"
+            "value" : "壓力曲線"
           }
         }
       }
@@ -1429,7 +1399,7 @@
         },
         "zh-Hans" : {
           "stringUnit" : {
-            "state" : "needs_review",
+            "state" : "translated",
             "value" : "单点鼠标"
           }
         },
@@ -1489,7 +1459,7 @@
         },
         "zh-Hans" : {
           "stringUnit" : {
-            "state" : "needs_review",
+            "state" : "translated",
             "value" : "导出所有"
           }
         },
@@ -1688,61 +1658,61 @@
       }
     },
     "bVv-CW-kN8.segmentTitles[0]" : {
-      "comment" : "Class = \"UISegmentedControl\"; bVv-CW-kN8.segmentTitles[0] = \"Off\"; ObjectID = \"bVv-CW-kN8\";",
+      "comment" : "Class = \"UISegmentedControl\"; bVv-CW-kN8.segmentTitles[0] = \"Regular\"; ObjectID = \"bVv-CW-kN8\";",
       "extractionState" : "extracted_with_value",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "new",
-            "value" : "Off"
+            "value" : "Regular"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "关闭"
+            "value" : "常规"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "關閉"
+            "value" : "常規"
           }
         },
         "zh-HK" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "關閉"
+            "value" : "常規"
           }
         }
       }
     },
     "bVv-CW-kN8.segmentTitles[1]" : {
-      "comment" : "Class = \"UISegmentedControl\"; bVv-CW-kN8.segmentTitles[1] = \"Manual (240Hz)\"; ObjectID = \"bVv-CW-kN8\";",
+      "comment" : "Class = \"UISegmentedControl\"; bVv-CW-kN8.segmentTitles[1] = \"HD\"; ObjectID = \"bVv-CW-kN8\";",
       "extractionState" : "extracted_with_value",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "new",
-            "value" : "Manual (240Hz)"
+            "value" : "HD"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "手动 (240Hz)"
+            "state" : "translated",
+            "value" : "HD"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "手動 (240Hz)"
+            "value" : "HD"
           }
         },
         "zh-HK" : {
           "stringUnit" : {
             "state" : "needs_review",
-            "value" : "手動 (240Hz)"
+            "value" : "HD"
           }
         }
       }
@@ -1759,7 +1729,7 @@
         },
         "zh-Hans" : {
           "stringUnit" : {
-            "state" : "needs_review",
+            "state" : "translated",
             "value" : "鼠标按下"
           }
         },
@@ -1778,31 +1748,31 @@
       }
     },
     "ccv-UD-RYW.text" : {
-      "comment" : "Class = \"UILabel\"; text = \"Squeeze Shortcut\"; ObjectID = \"ccv-UD-RYW\";",
+      "comment" : "Class = \"UILabel\"; text = \"Custom Squeeze Keyboard Shortcut\"; ObjectID = \"ccv-UD-RYW\";",
       "extractionState" : "extracted_with_value",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "new",
-            "value" : "Squeeze Shortcut"
+            "value" : "Custom Squeeze Keyboard Shortcut"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "捏笔快捷键"
+            "state" : "translated",
+            "value" : "捏合快捷键"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
-            "state" : "translated",
-            "value" : "捏筆快速鍵"
+            "state" : "needs_review",
+            "value" : "捏合快速鍵"
           }
         },
         "zh-HK" : {
           "stringUnit" : {
-            "state" : "translated",
-            "value" : "捏筆快速鍵"
+            "state" : "needs_review",
+            "value" : "捏合快速鍵"
           }
         }
       }
@@ -2257,6 +2227,36 @@
         }
       }
     },
+    "DhB-EF-mDt.text" : {
+      "comment" : "Class = \"UILabel\"; text = \"Hover Mode\"; ObjectID = \"DhB-EF-mDt\";",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Hover Mode"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "悬停模式"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "懸停模式"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "懸停模式"
+          }
+        }
+      }
+    },
     "dOF-FW-cBU.text" : {
       "comment" : "Class = \"UILabel\"; text = \"                                    \"; ObjectID = \"dOF-FW-cBU\";",
       "extractionState" : "extracted_with_value",
@@ -2341,6 +2341,29 @@
         }
       }
     },
+    "Drawing Toolkit" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "[绘画进阶套件]"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "「繪畫進階套件」"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "「繪畫進階套件」"
+          }
+        }
+      }
+    },
     "EFR-Ee-KiK.text" : {
       "comment" : "Class = \"UILabel\"; text = \"Roll → Left Stick\"; ObjectID = \"EFR-Ee-KiK\";",
       "extractionState" : "extracted_with_value",
@@ -2383,7 +2406,7 @@
         },
         "zh-Hans" : {
           "stringUnit" : {
-            "state" : "needs_review",
+            "state" : "translated",
             "value" : "触点灵敏度"
           }
         },
@@ -3085,7 +3108,7 @@
         },
         "zh-Hans" : {
           "stringUnit" : {
-            "state" : "needs_review",
+            "state" : "translated",
             "value" : "最小偏移量(陀螺仪→摇杆)"
           }
         },
@@ -3104,31 +3127,31 @@
       }
     },
     "hZw-pC-Qxm.text" : {
-      "comment" : "Class = \"UILabel\"; text = \"Pencil Pauses Native Touch\"; ObjectID = \"hZw-pC-Qxm\";",
+      "comment" : "Class = \"UILabel\"; text = \"Drawing Pauses Native Touch\"; ObjectID = \"hZw-pC-Qxm\";",
       "extractionState" : "extracted_with_value",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "new",
-            "value" : "Pencil Pauses Native Touch"
+            "value" : "Drawing Pauses Native Touch"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "使用笔时暂停多点触控"
+            "value" : "绘画时暂停多点触控"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "使用筆時暫停多點觸控"
+            "value" : "繪畫時暫停多點觸控"
           }
         },
         "zh-HK" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "使用筆時暫停多點觸控"
+            "value" : "繪畫時暫停多點觸控"
           }
         }
       }
@@ -3721,7 +3744,7 @@
         },
         "zh-Hans" : {
           "stringUnit" : {
-            "state" : "needs_review",
+            "state" : "translated",
             "value" : "禁用"
           }
         },
@@ -3751,7 +3774,7 @@
         },
         "zh-Hans" : {
           "stringUnit" : {
-            "state" : "needs_review",
+            "state" : "translated",
             "value" : "允许"
           }
         },
@@ -3781,7 +3804,7 @@
         },
         "zh-Hans" : {
           "stringUnit" : {
-            "state" : "needs_review",
+            "state" : "translated",
             "value" : "屏显控件"
           }
         },
@@ -3811,7 +3834,7 @@
         },
         "zh-Hans" : {
           "stringUnit" : {
-            "state" : "needs_review",
+            "state" : "translated",
             "value" : "串流码率"
           }
         },
@@ -3841,7 +3864,7 @@
         },
         "zh-Hans" : {
           "stringUnit" : {
-            "state" : "needs_review",
+            "state" : "translated",
             "value" : "帧步进控制"
           }
         },
@@ -4093,7 +4116,7 @@
         },
         "zh-Hans" : {
           "stringUnit" : {
-            "state" : "needs_review",
+            "state" : "translated",
             "value" : "触控模式"
           }
         },
@@ -4273,7 +4296,7 @@
         },
         "zh-Hans" : {
           "stringUnit" : {
-            "state" : "needs_review",
+            "state" : "translated",
             "value" : "打开软键盘"
           }
         },
@@ -4405,7 +4428,7 @@
         },
         "zh-Hans" : {
           "stringUnit" : {
-            "state" : "needs_review",
+            "state" : "translated",
             "value" : "鼠标指针灵敏度"
           }
         },
@@ -4627,7 +4650,7 @@
         },
         "zh-Hans" : {
           "stringUnit" : {
-            "state" : "needs_review",
+            "state" : "translated",
             "value" : "手势滑动触发距离"
           }
         },
@@ -4699,7 +4722,7 @@
         },
         "zh-Hans" : {
           "stringUnit" : {
-            "state" : "needs_review",
+            "state" : "translated",
             "value" : "串流分辨率"
           }
         },
@@ -4747,32 +4770,63 @@
         }
       }
     },
-    "Qat-gL-qiL.text" : {
-      "comment" : "Class = \"UILabel\"; text = \"Pencil Tick\"; ObjectID = \"Qat-gL-qiL\";",
-      "extractionState" : "extracted_with_value",
+    "q78-aY-mIe.text" : {
+      "comment" : "Class = \"UILabel\"; text = \"Disable Hovering\"; ObjectID = \"q78-aY-mIe\";",
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "new",
-            "value" : "Pencil Tick"
+            "value" : "Disable Hovering"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "笔触Tick"
+            "value" : "关闭悬停"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "筆觸Tick"
+            "value" : "關閉懸停"
           }
         },
         "zh-HK" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "筆觸Tick"
+            "value" : "關閉懸停"
+          }
+        }
+      },
+      "shouldTranslate" : false
+    },
+    "Qat-gL-qiL.text" : {
+      "comment" : "Class = \"UILabel\"; text = \"Stroke Type\"; ObjectID = \"Qat-gL-qiL\";",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Stroke Type"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "笔迹类型"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "筆跡類型"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "筆跡類型"
           }
         }
       }
@@ -4909,7 +4963,7 @@
         },
         "zh-Hans" : {
           "stringUnit" : {
-            "state" : "needs_review",
+            "state" : "translated",
             "value" : "灵敏度分割位置"
           }
         },
@@ -5011,7 +5065,7 @@
         },
         "zh-Hans" : {
           "stringUnit" : {
-            "state" : "needs_review",
+            "state" : "translated",
             "value" : "唤醒本地软键盘时, 抬升串流视图"
           }
         },
@@ -5263,6 +5317,126 @@
         }
       }
     },
+    "t12-bo-icS.segmentTitles[0]" : {
+      "comment" : "Class = \"UISegmentedControl\"; t12-bo-icS.segmentTitles[0] = \"Disabled\"; ObjectID = \"t12-bo-icS\";",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Disabled"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "关闭"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "關閉"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "關閉"
+          }
+        }
+      }
+    },
+    "t12-bo-icS.segmentTitles[1]" : {
+      "comment" : "Class = \"UISegmentedControl\"; t12-bo-icS.segmentTitles[1] = \"Stylus\"; ObjectID = \"t12-bo-icS\";",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Stylus"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "手写笔"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "手寫筆"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "手寫筆"
+          }
+        }
+      }
+    },
+    "t12-bo-icS.segmentTitles[2]" : {
+      "comment" : "Class = \"UISegmentedControl\"; t12-bo-icS.segmentTitles[2] = \"Mouse\"; ObjectID = \"t12-bo-icS\";",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Mouse"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "鼠标"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "滑鼠"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "滑鼠"
+          }
+        }
+      }
+    },
+    "t12-bo-icS.segmentTitles[3]" : {
+      "comment" : "Class = \"UISegmentedControl\"; t12-bo-icS.segmentTitles[3] = \"Both\"; ObjectID = \"t12-bo-icS\";",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Both"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "同时悬停"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "同時懸停"
+          }
+        },
+        "zh-HK" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "同時懸停"
+          }
+        }
+      }
+    },
     "tAd-bm-2IO.text" : {
       "comment" : "Class = \"UILabel\"; text = \"Local Mouse Pointer\"; ObjectID = \"tAd-bm-2IO\";",
       "extractionState" : "extracted_with_value",
@@ -5378,30 +5552,30 @@
       }
     },
     "v5f-j3-pEc.text" : {
-      "comment" : "Class = \"UILabel\"; text = \"Double Tap Shortcut\"; ObjectID = \"v5f-j3-pEc\";",
+      "comment" : "Class = \"UILabel\"; text = \"Custom Double Tap Keyboard Shortcut\"; ObjectID = \"v5f-j3-pEc\";",
       "extractionState" : "extracted_with_value",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "new",
-            "value" : "Double Tap Shortcut"
+            "value" : "Custom Double Tap Keyboard Shortcut"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
-            "state" : "needs_review",
+            "state" : "translated",
             "value" : "轻点两下快捷键"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
-            "state" : "translated",
+            "state" : "needs_review",
             "value" : "輕點兩下快速鍵"
           }
         },
         "zh-HK" : {
           "stringUnit" : {
-            "state" : "translated",
+            "state" : "needs_review",
             "value" : "輕點兩下快速鍵"
           }
         }
@@ -5510,31 +5684,31 @@
       }
     },
     "w3d-5s-dH3.text" : {
-      "comment" : "Class = \"UILabel\"; text = \"Disable Pencil Slide Gesture\"; ObjectID = \"w3d-5s-dH3\";",
+      "comment" : "Class = \"UILabel\"; text = \"Disable Slide Gesture for Pencil\"; ObjectID = \"w3d-5s-dH3\";",
       "extractionState" : "extracted_with_value",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "new",
-            "value" : "Disable Pencil Slide Gesture"
+            "value" : "Disable Slide Gesture for Pencil"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "关闭 Pencil 滑动手势"
+            "value" : "关闭手写笔滑动手势"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "關閉 Pencil 滑動手勢"
+            "value" : "關閉手寫筆滑動手勢"
           }
         },
         "zh-HK" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "關閉 Pencil 滑動手勢"
+            "value" : "關閉手寫筆滑動手勢"
           }
         }
       }
@@ -5713,7 +5887,7 @@
         },
         "zh-Hans" : {
           "stringUnit" : {
-            "state" : "needs_review",
+            "state" : "translated",
             "value" : "异步帧出队"
           }
         },
@@ -5785,7 +5959,7 @@
         },
         "zh-Hans" : {
           "stringUnit" : {
-            "state" : "needs_review",
+            "state" : "translated",
             "value" : "轻按任意控件加载配置 (各控件独立)"
           }
         },
@@ -5827,7 +6001,7 @@
         },
         "zh-Hans" : {
           "stringUnit" : {
-            "state" : "needs_review",
+            "state" : "translated",
             "value" : "指针速度"
           }
         },
@@ -5871,36 +6045,6 @@
           "stringUnit" : {
             "state" : "needs_review",
             "value" : "偏航/俯仰→右搖桿"
-          }
-        }
-      }
-    },
-    "Ylu-hT-Cuz.text" : {
-      "comment" : "Class = \"UILabel\"; text = \"The recommended value is 2. 1 frame provides the lowest latency, but may require an Ethernet connection.\"; ObjectID = \"Ylu-hT-Cuz\";",
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "The recommended value is 2. 1 frame provides the lowest latency, but may require an Ethernet connection."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "建议值为2。1帧提供最低延迟，但可能需要以太网连接。"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "建議值為2。1影格提供最低延遲，但可能需要乙太網路連線。"
-          }
-        },
-        "zh-HK" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "建議值為2。1影格提供最低延遲，但可能需要乙太網路連線。"
           }
         }
       }
