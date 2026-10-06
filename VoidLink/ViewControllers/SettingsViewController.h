@@ -10,21 +10,33 @@
 //
 
 #import <UIKit/UIKit.h>
-#import "AppDelegate.h"
-#import "CustomOSCViewControl/LayoutOnScreenControlsViewController.h"
-#import "MainFrameViewController.h"
-#import "CustomEdgeSlideGestureRecognizer.h"
-#import "MenuSectionView.h"
+#import "SWRevealViewController.h"
 
-@interface SettingsViewController : UIViewController <RearNavigationBarMenuDelegate, MenuSectionDelegate, MicHandlerDelegate>
+@class LayoutOnScreenControlsViewController;
+@class MainFrameViewController;
+@class TemporarySettings;
+@class MenuSectionView;
+@class MicHandler;
+@class WidgetPickerViewController;
 
+@interface SettingsViewController : UIViewController <RearNavigationBarMenuDelegate, UITextFieldDelegate>
+
+#if TARGET_OS_TV
+- (TemporarySettings *)initialSettingsSnapshotForSwiftUI;
+- (void)consumeTvOSInitialSettingsSnapshotForMenuPresentation;
+#endif
+
+#if !TARGET_OS_TV
 @property (strong, nonatomic) IBOutlet UINavigationBar *navigationBar;
 @property (strong, nonatomic) UIStackView *parentStack;
 @property (strong, nonatomic) IBOutlet UIStackView *resolutionStack;
+@property (strong, nonatomic) IBOutlet UIStackView *resolutionSelectorStack;
+@property (weak, nonatomic) IBOutlet UIStackView *customResolutionStack;
+
 @property (strong, nonatomic) IBOutlet UIStackView *fpsStack;
 @property (strong, nonatomic) IBOutlet UIStackView *bitrateStack;
 @property (strong, nonatomic) IBOutlet UIStackView *touchModeStack;
-@property (strong, nonatomic) IBOutlet UIStackView *enableOswSwitchStack;
+// @property (strong, nonatomic) IBOutlet UIStackView *enableOswSwitchStack;
 //@property (strong, nonatomic) IBOutlet UIStackView *asyncTouchStack;
 @property (strong, nonatomic) IBOutlet UISwitch *optimizeGamesSwitch;
 @property (strong, nonatomic) IBOutlet UIStackView *pointerVelocityDividerStack;
@@ -70,7 +82,7 @@
 @property (strong, nonatomic) IBOutlet UISwitch *customResolutionSwitch;
 @property (strong, nonatomic) IBOutlet UILabel *touchModeLabel;
 @property (strong, nonatomic) IBOutlet UISegmentedControl *touchModeSelector1;
-@property (strong, nonatomic) IBOutlet UISwitch *enableOswForNativeTouchSwitch;
+// @property (strong, nonatomic) IBOutlet UISwitch *enableOswForNativeTouchSwitch;
 @property (strong, nonatomic) IBOutlet UILabel *onscreenControllerLabel;
 @property (strong, nonatomic) IBOutlet UISegmentedControl *onScreenWidgetSelector;
 //@property (strong, nonatomic) IBOutlet UISegmentedControl *asyncNativeTouchPrioritySelector;
@@ -98,8 +110,10 @@
 @property (strong, nonatomic) IBOutlet UISlider *mousePointerVelocityFactorSlider;
 @property (strong, nonatomic) IBOutlet UILabel *mousePointerVelocityFactorUILabel;
 @property (strong, nonatomic) IBOutlet UISegmentedControl *unlockDisplayOrientationSelector;
-@property (strong, nonatomic) LayoutOnScreenControlsViewController *layoutOnScreenControlsVC;
-@property (nonatomic, strong) MainFrameViewController *mainFrameViewController;
+@property (weak, nonatomic) LayoutOnScreenControlsViewController *layoutOnScreenControlsVC;
+@property (nonatomic, weak) MainFrameViewController *mainFrameViewController;
+@property (strong, nonatomic) UIView *controllerNavigationHighlightOverlayView;
+@property (nonatomic, strong, readonly) MenuSectionView *touchControlSection;
 
 @property (strong, nonatomic) IBOutlet UISegmentedControl *externalDisplayModeSelector;
 @property (strong, nonatomic) IBOutlet UISegmentedControl *localMousePointerModeSelector;
@@ -121,6 +135,10 @@
 @property (strong, nonatomic) IBOutlet UIStackView *graphOpacityStack;
 @property (strong, nonatomic) IBOutlet UISegmentedControl *renderingBackendSelector;
 @property (strong, nonatomic) IBOutlet UISegmentedControl *framePacingModeSelector;
+@property (strong, nonatomic) IBOutlet UIStackView *interpolationLevelStack;
+@property (strong, nonatomic) IBOutlet UISlider *interpolationLevelSlider;
+@property (strong, nonatomic) IBOutlet UIStackView *streamDimensionScaleStack;
+@property (strong, nonatomic) IBOutlet UISlider *streamDimensionScaleSlider;
 
 @property (strong, nonatomic) IBOutlet UIStackView *backgroundSessionTimerStack;
 @property (strong, nonatomic) IBOutlet UISlider *backgroundSessionTimerSlider;
@@ -149,11 +167,19 @@
 @property (strong, nonatomic) IBOutlet UIStackView *rememberFoldStateStack;
 @property (strong, nonatomic) IBOutlet UISwitch *rememberFoldStateSwitch;
 
+@property (weak, nonatomic) IBOutlet UIStackView *gyroSourceStack;
+@property (weak, nonatomic) IBOutlet UISegmentedControl *gyroSourceSelector;
+
+@property (weak, nonatomic) IBOutlet UIStackView *swapYawAndRollStack;
+@property (weak, nonatomic) IBOutlet UISwitch *swapYawAndRollSwitch;
+
 @property (strong, nonatomic) IBOutlet UIStackView *mapGyroToStack;
 @property (strong, nonatomic) IBOutlet UISegmentedControl *mapGyroToSelector;
 
 @property (strong, nonatomic) IBOutlet UIStackView *gyroToStickSwitchStack;
+@property (weak, nonatomic) IBOutlet UIStackView *yawPitchToRightStickStack;
 @property (strong, nonatomic) IBOutlet UISwitch *yawPitchToRightStickSwitch;
+@property (weak, nonatomic) IBOutlet UIStackView *rollToLeftStickStack;
 @property (strong, nonatomic) IBOutlet UISwitch *rollToLeftStickSwitch;
 
 @property (strong, nonatomic) IBOutlet UIStackView *yawPitchSensitivityStack;
@@ -216,8 +242,14 @@
 @property (strong, nonatomic) IBOutlet UIStackView *passthroughGesturesStack;
 @property (strong, nonatomic) IBOutlet UISwitch *passthroughGesturesSwitch;
 
-@property (strong, nonatomic) IBOutlet UIStackView *controllerToMouseStack;
-@property (strong, nonatomic) IBOutlet UISwitch *controllerToMouseSwitch;
+@property (weak, nonatomic) IBOutlet UIStackView *softKeyboardHeightStack;
+@property (weak, nonatomic) IBOutlet UISwitch *softKeyboardHeightSwitch;
+
+@property (strong, nonatomic) IBOutlet UIStackView *controllerNavigationStack;
+@property (strong, nonatomic) IBOutlet UISwitch *controllerNavigationSwitch;
+
+@property (weak, nonatomic) IBOutlet UIStackView *streamingRadialMenuDelayStack;
+@property (weak, nonatomic) IBOutlet UISlider *streamingRadialMenuDelaySlider;
 
 @property (strong, nonatomic) IBOutlet UIStackView *controllerMouseVelocityStack;
 @property (strong, nonatomic) IBOutlet UISlider *controllerMouseVelocitySlider;
@@ -243,9 +275,6 @@
 @property (strong, nonatomic) IBOutlet UIStackView *pressureCurveStack;
 @property (strong, nonatomic) IBOutlet UISwitch *pressureCurveSwitch;
 
-@property (weak, nonatomic) IBOutlet UIStackView *frameTimebaseStack;
-@property (weak, nonatomic) IBOutlet UISwitch *frameTimebaseSwitch;
-
 @property (weak, nonatomic) IBOutlet UIStackView *asyncFrameDequeueStack;
 @property (weak, nonatomic) IBOutlet UISwitch *asyncFrameDequeueSwitch;
 
@@ -255,9 +284,13 @@
 @property (weak, nonatomic) IBOutlet UIStackView *trackTouchPointStack;
 @property (weak, nonatomic) IBOutlet UISwitch *trackTouchPointSwitch;
 
+@property (weak, nonatomic) IBOutlet UIStackView *globeAsEscapeStack;
+@property (weak, nonatomic) IBOutlet UISwitch *globeAsEscapeSwitch;
+
+@property (weak, nonatomic) IBOutlet UIStackView *dualSenseTransientStack;
+@property (weak, nonatomic) IBOutlet UISlider *dualSenseTransientSlider;
 
 @property (strong, nonatomic) IBOutlet UIStackView *testStack;
-
 
 @property (nonatomic, strong) MicHandler *micHandler;
 
@@ -268,6 +301,9 @@
 
 @property (strong, nonatomic) IBOutlet UIStackView *pencilTickIntervalStack;
 @property (strong, nonatomic) IBOutlet UISlider *pencilTickIntervalSlider;
+
+@property (weak, nonatomic) IBOutlet UIStackView *pencilTipOffsetStack;
+@property (weak, nonatomic) IBOutlet UISwitch *pencilTipOffsetSwitch;
 
 @property (weak, nonatomic) IBOutlet UIStackView *doubleTapShortcutStack;
 @property (weak, nonatomic) IBOutlet UISwitch *doubleTapShortcutSwitch;
@@ -281,9 +317,15 @@
 @property (weak, nonatomic) IBOutlet UIStackView *disablePencilSlideGestureStack;
 @property (weak, nonatomic) IBOutlet UISwitch *disablePencilSlideGestureSwitch;
 
-@property (weak, nonatomic) IBOutlet UIStackView *hoverModeStack;
-@property (weak, nonatomic) IBOutlet UISegmentedControl *hoverModeSelector;
-
+@property (weak, nonatomic) IBOutlet UIStackView *pencilModeStack;
+@property (weak, nonatomic) IBOutlet UISegmentedControl *pencilModeSelector;
+#else
+@property (strong, nonatomic) UIStackView *parentStack;
+@property (nonatomic, weak) MainFrameViewController *mainFrameViewController;
+@property (strong, nonatomic) UIView *controllerNavigationHighlightOverlayView;
+@property (weak, nonatomic) LayoutOnScreenControlsViewController *layoutOnScreenControlsVC;
+@property (strong, nonatomic) IBOutlet UIScrollView *scrollView;
+#endif
 
 
 #pragma clang diagnostic push
@@ -291,17 +333,40 @@
 
 // This is okay because it's just an enum and access uses @available checks
 @property(nonatomic) UIUserInterfaceStyle overrideUserInterfaceStyle;
+@property(nonatomic, readonly) SettingsMenuMode currentSettingsMenuMode;
 
 #pragma clang diagnostic pop
 
+#if !TARGET_OS_TV
 - (bool)hdrSupported;
-- (void)saveSettings;
+- (void)saveFavoriteSettingStackIdentifiers;
 + (bool)isLandscapeNow;
 - (void)updateResolutionTable;
 - (void)widget:(UIView*)widget setEnabled:(bool)enabled;
-- (void)updateTheme;
 - (void)hideDynamicLabelsWhenOverlapped:(UIView* )view;
 - (void)setHidden:(BOOL)hidden forStack:(UIStackView* )stack;
 - (void)updateCodecDependentSwitches;
+- (void)addSettingToFavorite:(UIStackView* )settingStack;
+#endif
+
+- (void)mainFrameGameProfileButtonTapped:(bool)animated;
+- (void)updateTheme;
+- (void)saveSettings;
+
+@end
+
+@interface SettingsViewController (SwiftUISettings)
+- (void)installSwiftUISettingsIfNeeded;
+- (void)refreshSwiftUISettings;
+- (void)refreshSwiftUISettingsGeometry;
+- (void)reloadSwiftUISettings;
+- (void)persistSwiftUISettings;
+- (void)persistSwiftUIGameProfileSettings;
+- (void)applySwiftUIClosingEffects;
+- (void)updateSwiftUISettingsStreamingState:(BOOL)expandedInStream menuIsOpening:(BOOL)menuIsOpening;
+- (void)setSwiftUISettingsMenuMode:(NSInteger)rawValue;
+- (NSInteger)swiftUISettingsMenuModeRawValue;
+- (void)expandGamepadSection;
+@property(nonatomic, readonly) BOOL usesSwiftUISettings;
 
 @end

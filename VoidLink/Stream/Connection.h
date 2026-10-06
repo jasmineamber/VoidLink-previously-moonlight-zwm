@@ -21,6 +21,7 @@
 @interface Connection : NSOperation <NSStreamDelegate>
 @property (class, nonatomic, assign) bool muteInBackground;
 @property (class, nonatomic, assign) bool useSystemAudioEngine;
+@property (class, nonatomic, assign) bool useDualSenseHapticsIrV2;
 
 -(id) initWithConfig:(StreamConfiguration*)config renderer:(VideoDecoderRenderer*)myRenderer connectionCallbacks:(id<ConnectionCallbacks>)callbacks;
 -(void) terminate;
@@ -30,5 +31,10 @@
 -(NSString*) getActiveCodecName;
 
 + (void)setVolume:(float)newVolume;
++ (void)resetSysAudioPlayback;
+
++ (bool)useDualSenseAuthoredPCM;
++ (void)setuseDualSenseAuthoredPCM:(bool)use;
+
 
 @end

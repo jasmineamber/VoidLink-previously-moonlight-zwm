@@ -13,8 +13,9 @@
 
 #import "ControllerSupport.h"
 #import "OnScreenControls.h"
-#import "VoidLink-Swift.h"
 #import "StreamConfiguration.h"
+
+@class PencilHandler;
 
 @protocol UserInteractionDelegate <NSObject>
 
@@ -24,15 +25,12 @@
 - (void)toggleStatsOverlay;
 - (void)toggleMouseCapture;
 - (void)toggleMouseVisible;
+- (void)expandSettingsView;
 - (void)disconnectAndQuitApp;
 
 @end
 
-#if TARGET_OS_TV
-@interface StreamView : UIView <X1KitMouseDelegate, UITextFieldDelegate>
-#else
-@interface StreamView : UIView <X1KitMouseDelegate, UITextFieldDelegate, UIPointerInteractionDelegate>
-#endif
+@interface StreamView : UIView
 
 @property (weak, nonatomic) UIView* streamFrameTopLayerView;
 @property (weak, nonatomic) id<UserInteractionDelegate> interactionDelegate;
@@ -41,12 +39,12 @@
 @property (assign, nonatomic) bool widgetToolOpened;
 @property (strong, nonatomic) OnScreenControls* onScreenControls;
 @property (weak, nonatomic) PencilHandler* pencilHandler;
-@property (weak, nonatomic) UIViewController* streamFrameVC;
 
-- (void) setupStreamView:(ControllerSupport*)controllerSupport
-     interactionDelegate:(id<UserInteractionDelegate>)interactionDelegate
-                  config:(StreamConfiguration*)streamConfig
- streamFrameTopLayerView:(UIView* )topLayerView
+- (void) setupStreamViewWithControllerSupport:(ControllerSupport*)controllerSupport
+                          interactionDelegate:(id<UserInteractionDelegate>)interactionDelegate
+                                 streamConfig:(StreamConfiguration*)streamConfig
+                                  gameProfile:(OSCProfile* )profile
+                      streamFrameTopLayerView:(UIView* )topLayerView
 ;
 
 - (void)cleanUp;
@@ -54,13 +52,13 @@
 - (void) reloadLegacyWidgets:(OSCProfile* )profile;
 - (void) setOnScreenControls;
 - (void) disableOnScreenControls;
-- (void) reloadOnScreenControlsRealtimeWith:(ControllerSupport*)controllerSupport
-                          andConfig:(StreamConfiguration*)streamConfig;
+- (void) reloadOnScreenControlsRealtimeWithControllerSupport:(ControllerSupport*)controllerSupport
+                          streamConfig:(StreamConfiguration*)streamConfig;
 - (void) reloadOnScreenControlsWith:(ControllerSupport*)controllerSupport
                           andConfig:(StreamConfiguration*)streamConfig;
 - (void) clearOnScreenWidgets;
-- (void) reloadOnScreenWidgetViews:(bool)reload;
-- (void) saveStreamViewWidgetChanges;
+- (void) reloadGameProfile:(OSCProfile* )profile reloadWidgets:(bool)reloadWidgets;
+- (void) saveStreamingGameProfileChanges;
 - (bool) isOnScreenWidgetEnabled;
 
 - (CGSize) getVideoAreaSize;
@@ -70,8 +68,10 @@
 - (OnScreenControlsLevel) getCurrentOscState;
 
 - (void)readyToBringUpSoftKeyboardByToolbox;
+- (void)remoteTextInputForTvOS;
 - (void)keyboardWillShow:(NSNotification *)notification;
 - (void)keyboardWillHide;
+- (void)handleNonStandardKeyboard:(NSNotification *)notification;
 - (void)liftMetalVideoViewIfNeeded:(CGFloat)liftHeight;
 
 - (void)alterAbsTouchDragWith:(int32_t)mouseButton;
@@ -79,6 +79,9 @@
 - (void)enablePencilHover;
 - (void)disablePencilHover;
 - (void)setAllowSingleTouchEnabled:(BOOL)enabled;
+- (void)toggleTouchDisabled:(bool)disabled;
+
+- (void)startInteractionTimer;
 
 #if !TARGET_OS_TV
 - (void) updateCursorLocation:(CGPoint)location isMouse:(BOOL)isMouse;

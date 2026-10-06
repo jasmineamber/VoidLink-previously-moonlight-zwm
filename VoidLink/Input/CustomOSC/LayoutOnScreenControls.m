@@ -10,9 +10,8 @@
 //
 
 #import "LayoutOnScreenControls.h"
-#import "OSCProfilesTableViewController.h"
 #import "OnScreenButtonState.h"
-#import "OSCProfilesManager.h"
+#import "VoidLink-Swift.h"
 
 
 @interface LayoutOnScreenControls ()
@@ -35,7 +34,9 @@
 - (id) initWithView:(UIView*)view controllerSup:(ControllerSupport*)controllerSupport streamConfig:(StreamConfiguration*)streamConfig oscLevel:(int)oscLevel {
     
     _view = view;
+#if !TARGET_OS_TV
     _view.multipleTouchEnabled = false;
+#endif
     
   
     self = [super initWithView:view controllerSup:controllerSupport streamConfig:streamConfig];
@@ -89,9 +90,8 @@
         [self._dPadBackground addSublayer:self._leftButton];
     }
     
-    NSLog(@"layer name ttttttttttt============================");
     for(CALayer* buttonLayer in self.OSCButtonLayerPool){
-        NSLog(@"layer name %@", buttonLayer.name);
+        // NSLog(@"layer name %@", buttonLayer.name);
     }
     
     [self resizeControllerLayerWith:self._dPadBackground and:_dPadSizeFactor];
@@ -138,43 +138,56 @@
      */
     
     horizontalGuideline.backgroundColor = [UIColor blueColor]; // change horizontal guideline back to blue if it doesn't line up with one of the on screen buttons
+    OnScreenWidgetView.isHorizontallyAligned = false;
     for (CALayer *button in self.OSCButtonLayerPool) { // horizontal guideline position check
         if ((layerBeingDragged != button) && !button.isHidden) {
             if ((horizontalGuideline.center.y < button.position.y + 1) &&
                 (horizontalGuideline.center.y > button.position.y - 1)) {
                 horizontalGuideline.backgroundColor = [UIColor yellowColor];
+                OnScreenWidgetView.isHorizontallyAligned = true;
+                OnScreenWidgetView.alignedY = button.position.y;
                 break;
             }
         }
     }
     for(UIView* view in self.layoutToolVC.view.subviews){
         if ([view isKindOfClass:[OnScreenWidgetView class]] && view != widget) {
-            if ((horizontalGuideline.center.y < view.center.y + 1) && (horizontalGuideline.center.y > view.center.y - 1)) {
+            OnScreenWidgetView* otherWidget = (OnScreenWidgetView *) view;
+            if(widget.isHidden) continue;
+            if(widget.isFolder && widget.bulkMoveEnabled && [widget.sequenceSet containsObject:@(otherWidget.sequence)]) break;
+            if((horizontalGuideline.center.y < view.center.y + 1) && (horizontalGuideline.center.y > view.center.y - 1)) {
                 horizontalGuideline.backgroundColor = [UIColor yellowColor];
+                OnScreenWidgetView.isHorizontallyAligned = true;
+                OnScreenWidgetView.alignedY = view.center.y;
                 break;
             }
         }
     }
 
     verticalGuideline.backgroundColor = [UIColor blueColor]; // change vertical guideline back to blue if it doesn't line up with one of the on screen buttons
+    OnScreenWidgetView.isVerticallyAligned = false;
     for (CALayer *button in self.OSCButtonLayerPool) { // vertical guideline position check
         if ((layerBeingDragged != button) && !button.isHidden) {
             if ((verticalGuideline.center.x < button.position.x + 1) &&
                 (verticalGuideline.center.x > button.position.x - 1)) {
                 verticalGuideline.backgroundColor = [UIColor yellowColor];
+                OnScreenWidgetView.isVerticallyAligned = true;
+                OnScreenWidgetView.alignedX = button.position.x;
                 break;
             }
         }
     }
     for(UIView* view in self.layoutToolVC.view.subviews){
         if ([view isKindOfClass:[OnScreenWidgetView class]] && view != widget) {
+            if(view.isHidden) continue;
             if ((verticalGuideline.center.x < view.center.x + 1) && (verticalGuideline.center.x > view.center.x - 1)) {
                 verticalGuideline.backgroundColor = [UIColor yellowColor];
+                OnScreenWidgetView.isVerticallyAligned = true;
+                OnScreenWidgetView.alignedX = view.center.x;
                 break;
             }
         }
     }
-     
 }
 
 - (void) updateGuidelinesForLegacyOnScreenControls{

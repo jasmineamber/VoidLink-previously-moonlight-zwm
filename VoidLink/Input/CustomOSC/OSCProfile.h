@@ -22,11 +22,11 @@ typedef NS_ENUM(NSInteger, MapGyroTo) {
     driftCorrection
 };
 
-typedef NS_ENUM(NSInteger, PencilHoverMode) {
-    HoverDisabled,
-    HoverPencil,
-    HoverMouse,
-    HoverBoth
+typedef NS_ENUM(NSInteger, PencilAndHoverMode) {
+    hoverDisabled,
+    pencilOnly,
+    pencilToMouse,
+    pencilToTouch
 };
 
 
@@ -41,6 +41,8 @@ typedef NS_ENUM(NSInteger, PencilHoverMode) {
 @property (nonatomic, assign) int16_t unfoldedExclusiveFolderSequence;
 @property NSSet<NSNumber *> *postExclusiveUnfoldedSequences;
 @property BOOL isSelected;
+@property (nonatomic, assign) bool useBuiltinGyro;
+@property (nonatomic, assign) bool swapYawAndRoll;
 @property (nonatomic, assign) MapGyroTo mapGyroTo;
 @property (nonatomic, assign) bool yawPitchToRightStick;
 @property (nonatomic, assign) bool rollToLeftStick;
@@ -58,7 +60,20 @@ typedef NS_ENUM(NSInteger, PencilHoverMode) {
 @property (nonatomic, assign) bool reverseGyroHoldButton;
 @property (nonatomic, assign) int controllerGyroSwitchHold;
 @property (nonatomic, assign) int controllerGyroSwitchToggle;
+@property (nonatomic, assign) int touchMode;
+@property (nonatomic, assign) CGFloat pointerVelocityModeDivider;
+@property (nonatomic, assign) CGFloat touchPointerVelocityFactor;
+@property (nonatomic, assign) CGPoint normalizedStreamViewOffset;
+@property (nonatomic, assign) CGFloat streamViewScale;
+@property (nonatomic, assign) CGFloat dualSenseTransient;
+
+@property (nonatomic, assign) bool gamepadOverlayEnabled;
+
 @property NSArray<NSNumber *> *pressureCurvePoints;
+// @property NSArray<NSNumber *> *initialTouchPressureCurvePoints;
+@property (nonatomic, assign) int phase1StrokeSampleIndexEnd;
+@property (nonatomic, assign) int phase2StrokeSampleIndexEnd;
+@property (nonatomic, assign) CGFloat strokeEqualizationStrength;
 @property (nonatomic, assign) bool pressureCurveEnabled;
 @property (nonatomic, assign) bool doubleTapShorcutEnabled;
 @property NSString *brushShortcut;
@@ -68,7 +83,7 @@ typedef NS_ENUM(NSInteger, PencilHoverMode) {
 @property NSString *squeezeEndShortcut;
 @property (nonatomic, assign) bool pencilPausesNativeTouch;
 @property (nonatomic, assign) bool disablePencilSlideGestures;
-@property (nonatomic, assign) PencilHoverMode pencilHoverMode;
+@property (nonatomic, assign) PencilAndHoverMode pencilAndHoverMode;
 
 
 

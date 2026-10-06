@@ -11,14 +11,16 @@
 
 #import "OnScreenControls.h"
 #import "LayoutOnScreenControls.h"
+#if !TARGET_OS_TV
 #import "CustomTapGestureRecognizer.h"
+#endif
 #import "VoidController.h"
 #include "Limelight.h"
 #if !TARGET_OS_TV
     #import <CoreMotion/CoreMotion.h>
 #endif
 #import "OnScreenButtonState.h"
-#import "OSCProfilesManager.h"
+#import "VoidLink-Swift.h"
 #import "DataManager.h"
 
 #define UPDATE_BUTTON(x, y) (buttonFlags = \
@@ -61,7 +63,9 @@ static NSSet *validPositionButtonNames;
     NSDate* l3TouchStart;
     NSDate* r3TouchStart;
     
+#if !TARGET_OS_TV
     UIImpactFeedbackGenerator* vibrationGenerator;
+#endif
     
     BOOL l3Set;
     BOOL r3Set;
@@ -77,6 +81,7 @@ static NSSet *validPositionButtonNames;
     BOOL _swapABXY;
     BOOL _visualFeedbackEnabled;
     BOOL _largerStickLR1;
+    BOOL _firstTapFromOsc;
     CGFloat _oscTapExlusionAreaSizeFactor;
     OSCProfilesManager *profilesManager;
     NSMutableDictionary *_activeCustomOscButtonPositionDict;
@@ -187,6 +192,10 @@ static float L3_Y;
 - (void) pressDownControllerButton: (int)flag{
     [_controllerSupport setButtonFlag:_controller flags:flag];
     [_controllerSupport updateFinished:_controller];
+    if(_firstTapFromOsc){
+        _firstTapFromOsc = false;
+        [_controllerSupport updateTimerStateForOsc];
+    }
 }
 
 - (void) releaseControllerButton: (int)flag{
@@ -300,6 +309,7 @@ static float L3_Y;
 
     _activeCustomOscButtonPositionDict = [[NSMutableDictionary alloc] init];
     touchesCapturedByOnScreenControls = [[NSMutableSet alloc] init];
+    _firstTapFromOsc = true;
     
     if(![self isKindOfClass:[LayoutOnScreenControls class]]) OnScreenControls.shared = self;
     
@@ -354,7 +364,7 @@ static float L3_Y;
 }
 
 - (CGPoint) denormalizeWidgetPosition:(CGPoint)position {
-    if(position.x < 1.0 && position.y < 1.0) {
+    if(position.x < 1.01 && position.y < 1.01) {
         position.x = position.x * _view.bounds.size.width;
         position.y = position.y * _view.bounds.size.height;
         // NSLog(@"denormalizing position: %f, %f", position.x, position.y);
@@ -913,7 +923,7 @@ static float L3_Y;
                     [buttonLayer.name isEqualToString:@"rightButton"] ||
                     [buttonLayer.name isEqualToString:@"downButton"] ||
                     [buttonLayer.name isEqualToString:@"leftButton"]){
-                    // NSLog(@"layerName: %@, alpha: %f", buttonLayer.name, buttonStateDecoded.backgroundAlpha);
+                    // NSLog(@"layerName: %@, opacity: %f", buttonLayer.name, buttonStateDecoded.backgroundAlpha);
                     [self adjustControllerLayerOpacityWith:buttonLayer and:buttonStateDecoded.backgroundAlpha];
                 }
                 if([buttonLayer.name isEqualToString:@"leftStickBackground"]){
@@ -1293,6 +1303,9 @@ static float L3_Y;
 }
 
 - (void)oscButtonHapticFeedback:(CALayer* )button{
+#if TARGET_OS_TV
+    return;
+#else
     if([button.name isEqualToString:@"upButton"]
        || [button.name isEqualToString:@"downButton"]
        || [button.name isEqualToString:@"leftButton"]
@@ -1315,6 +1328,7 @@ static float L3_Y;
         [vibrationGenerator impactOccurred];
         // NSLog(@"vibration instance: %@",vibrationGenerator);
     }
+#endif
 }
 
 // osc Button capturing here
@@ -1508,6 +1522,7 @@ static float L3_Y;
     
     bool oscTouched = updated || stickTouch;
     if(oscTouched){
+#if !TARGET_OS_TV
         for (UIGestureRecognizer *gesture in _view.gestureRecognizers) { // we'll iterate the streamFrameTopLayerView, which was passed here as _view, where all the custom gestures are added) instead of the streamview, to check if that the osc buttons are pressed
             if ([gesture isKindOfClass:[CustomTapGestureRecognizer class]]) {
                 // This is a CustomTapGestureRecognizer
@@ -1516,6 +1531,7 @@ static float L3_Y;
                 // Perform actions with tapGesture
             }
         }
+#endif
     }
     
     return oscTouched;
@@ -2050,7 +2066,7 @@ static float L3_Y;
     if (layer == self._rightStickBackground) {
         self._rightStick.opacity = targetAlpha;
         self._rightStickBackground.opacity = targetAlpha + 1.0f/6.0f;
-        NSLog(@"right stick init alpha: %f", targetAlpha);
+        NSLog(@"right stick init opacity: %f", targetAlpha);
     }
 
     if (layer == self._leftStickBackground){

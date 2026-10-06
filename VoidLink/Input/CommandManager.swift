@@ -1,5 +1,5 @@
 //
-//  KeyManager.swift
+//  CommandManager.swift
 //  VoidLink
 //
 //  Created by True砖家 on 2024/7/23.
@@ -19,12 +19,14 @@ import UIKit
     
     // MARK: - Properties
     
+    @objc public private(set) var identifier: String
     @objc var cmdString: String
     @objc var alias: String
     
     // MARK: - Initialization
 
     init(cmdString: String, alias: String) {
+        self.identifier = UUID().uuidString
         self.cmdString = cmdString
         self.alias = alias
     }
@@ -36,11 +38,13 @@ import UIKit
               let alias = coder.decodeObject(of: NSString.self, forKey: "alias") as String? else {
             return nil
         }
+        self.identifier = coder.decodeObject(of: NSString.self, forKey: "identifier") as String? ?? UUID().uuidString
         self.cmdString = cmdString
         self.alias = alias
     }
 
     public func encode(with coder: NSCoder) {
+        coder.encode(identifier, forKey: "identifier")
         coder.encode(cmdString, forKey: "keyboardCmdString")
         coder.encode(alias, forKey: "alias")
     }
@@ -50,6 +54,29 @@ import UIKit
 // Define the CommandManager class
 @objc public class CommandManager: NSObject {
     @objc public static let shared = CommandManager()
+
+    private static let defaultCommandAliasMigrationMap: [String: String] = [
+        "任务管理器(Task Manager)": "=taskManager",
+        "Task Manager": "=taskManager",
+        "N卡截图(Nvidia Screenshot)": "=nvidiaShot",
+        "Nvidia Screenshot": "=nvidiaShot",
+        "N卡录屏(Nvidia Screen Recording)": "=nvidiaRec",
+        "Nvidia Screen Recording": "=nvidiaRec",
+        "关闭窗口(ALT+F4)": "=closeWindow",
+        "Close Window": "=closeWindow",
+        "全选(Select All)": "=selectAll",
+        "Select All": "=selectAll",
+        "复制(Copy)": "=copy",
+        "Copy": "=copy",
+        "粘贴(Paste)": "=paste",
+        "Paste": "=paste",
+        "切换桌面(Switch to Desktop)": "=switchDesktop",
+        "Switch to Desktop": "=switchDesktop",
+        "多显模式(Project)": "=projectDisplay",
+        "Project": "=projectDisplay",
+        "Xbox Game Bar": "=xboxGameBar",
+        "Steam Overlay": "=steamOverlay",
+    ]
     
     @objc public static let mouseButtonMappings: [String: Int32] = [
         "M_LEFT" : BUTTON_LEFT,
@@ -118,21 +145,25 @@ import UIKit
         "OSCBACK"
     ]
     
-    @objc public static let touchPadCmds: [String] = ["LSVPAD", "RSVPAD", "LSPAD", "RSPAD", "LSWHEEL", "RSWHEEL", "LTPAD", "RTPAD", "DS4TOUCH", "MOUSEPAD", "ABSMOUSE", "MOUSEWHEEL", "WHEEL", "DISCRETEWHEEL", "DSWHEEL", "DPAD", "TRACKBALL", "WASDPAD", "ARROWPAD"]
-    @objc public static let mousePadWithButtonActions: [String] = ["MOUSEPAD", "ABSMOUSE"]
-    @objc public static let mousePad: [String] = ["MOUSEPAD", "ABSMOUSE", "TRACKBALL"]
+    @objc public static let touchPadCmds: [String] = ["LSVPAD", "RSVPAD", "LSPAD", "RSPAD", "LSWHEEL", "RSWHEEL", "LTPAD", "RTPAD", "DS4TOUCH", "MOUSEPAD", "ABSMOUSEPAD", "ABSMOUSE", "MOUSEWHEEL", "WHEEL", "DISCRETEWHEEL", "DSWHEEL", "DPAD", "TRACKBALL", "WASDPAD", "ARROWPAD", "MAGNIFIER", "DUMMYPAD"]
+    @objc public static let mousePadWithButtonActions: [String] = ["MOUSEPAD", "ABSMOUSE", "ABSMOUSEPAD"]
+    @objc public static let mousePads: [String] = ["MOUSEPAD", "ABSMOUSE", "TRACKBALL", "ABSMOUSEPAD"]
     @objc public static let directionPads: [String] = ["DPAD", "WASDPAD", "ARROWPAD"]
     @objc public static let stickTouchPads: [String] = ["LSVPAD", "RSVPAD", "LSPAD", "RSPAD"]
-    @objc public static let nonVectorStickPads: [String] = ["LSPAD", "RSPAD"]
+    @objc public static let displacementBasedStickPads: [String] = ["LSPAD", "RSPAD"]
     @objc public static let stickWheels: [String] = ["LSWHEEL", "RSWHEEL"]
-    @objc public static let vectorTouchPads: [String] = ["LSVPAD", "RSVPAD", "MOUSEPAD", "TRACKBALL"]
-    @objc public static let inertialTouchPads: [String] = ["LSVPAD", "RSVPAD", "TRACKBALL"]
-    @objc public static let verticalTouchPads: [String] = ["LTPAD", "RTPAD", "MOUSEWHEEL", "WHEEL", "DISCRETEWHEEL", "DSWHEEL"]
-    @objc public static let bidirectionalVerticalTouchPads: [String] = ["LTPAD", "RTPAD", "MOUSEWHEEL", "WHEEL", "DISCRETEWHEEL", "DSWHEEL"]
+    @objc public static let velocityBasedTouchPads: [String] = ["LSVPAD", "RSVPAD", "MOUSEPAD", "TRACKBALL", "LTPAD", "RTPAD", "MOUSEWHEEL", "WHEEL"]
+    @objc public static let inertialTouchPads: [String] = ["LSVPAD", "RSVPAD", "TRACKBALL", "LSPAD", "RSPAD"]
+    @objc public static let verticalTouchPads: [String] = ["LTPAD", "RTPAD", "DISCRETEWHEEL", "DSWHEEL"]
+    @objc public static let singleDimensionActiveTouchpads: [String] = ["LTPAD", "RTPAD", "MOUSEWHEEL", "WHEEL", "DISCRETEWHEEL", "DSWHEEL"]
     @objc public static let functionalButtonCmds: [String] = [
         "SETTINGS",
         "TOOLBOX",
+        "DISCONNECT",
+        "QUITAPP",
+        "PIP",
         "WIDGETTOOL",
+        "ABSGAMEPAD",
         "WIDGETPROFILES",
         "PROFILES",
         "PICKPROFILE",
@@ -140,30 +171,48 @@ import UIKit
         "SOFTKEYBOARD",
         "ABSTCHDRAG",
         "FOLDER",
+        "LABELEDFOLDER",
         "PRESSURECURVE",
         "PENCILHOVER",
         "BRUSH",
         "ERASER",
-        "NOSINGLETOUCH"
+        "NOSINGLETOUCH",
+        "DISABLETILT",
+        "DISABLETOUCH",
+        "GAMEPADOVERLAY",
     ]
+    
+    @objc public static let functionalTouchPadCmds: [String] = [
+        "MAGNIFIER"
+    ]
+    
     @objc public static let pencilProButtonCmds: [String] = [
         "PENCILHOVER",
         "BRUSH",
         "ERASER",
-        "NOSINGLETOUCH"
+        "NOSINGLETOUCH",
+        "DISABLETILT"
     ]
     @objc public static let motionControlButtonCmds: [String] = ["GYRO","GYROPAUSE","ACCEL","MOTION"]
 
     // @objc public static let specialGameWidgets: [String] = ["YSRSV", "YSLT", "YSRT", "YSRB", "YSB", "YSRT2", "YSRB2", "YSB2", "YSEM", "YSML", "YSMR", "YSWASD"]
     
+    @objc public static let shortcutAllowedFunctionalButtonMappings: [String: Int16] = [
+        "BRUSH": 0xFF,
+        "ERASER": 0xFF,
+        "FOLDER": 0xFF,
+        "LABELEDFOLDER": 0xFF,
+    ]
+    
     @objc public static let keyboardButtonMappings: [String: Int16] = [
         // Windows Key Codes
         "NULL": 0xFF,
-        "BRUSH": 0xFF,
-        "ERASER": 0xFF,
         "CTRL": 0x11,        // VK_CONTROL
+        "RCTRL": 0xA3,        // VK_RCONTROL
         "SHIFT": 0x10,       // VK_SHIFT
+        "RSHIFT": 0xA1,       // VK_RSHIFT
         "ALT": 0x12,         // VK_MENU
+        "RALT": 0xA5,         // VK_MENU
         "F1": 0x70,          // VK_F1
         "F2": 0x71,          // VK_F2
         "F3": 0x72,          // VK_F3
@@ -299,111 +348,131 @@ import UIKit
         "LAUNCHAPP2": 0xB7, // VK_LAUNCH_APP2
         "WIN":  0x5B,
         "LEFT_WIN": 0x5B, // VK_LWIN
+        "LEFTWIN": 0x5B, // VK_LWIN
+        "LWIN": 0x5B, // VK_LWIN
         "RIGHT_WIN": 0x5C, // VK_RWIN
         "RIGHTWIN": 0x5C, // VK_RWIN
+        "RWIN": 0x5C, // VK_RWIN
         "APPS": 0x5D,        // VK_APPS
         
         // macOS Key Codes
-        "CMD": 0x37,     // ⌘ Command
-        "OPT": 0x3A,      // ⌥ Option
-        "CONTROL": 0x3B,     // ⌃ Control
-        "FUNCTION": 0x3F,    // fn
-        "SHIFTMAC": 0x38,   // ⇧ Shift
-        "DELETEMAC": 0x75,  // Forward Delete
-        "RETURNMAC": 0x24,  // Return
-        "ENTERMAC": 0x4C,   // Enter
-        "ESCAPEMAC": 0x35,  // Escape
-        "TABMAC": 0x30,     // Tab
-        "SPACEMAC": 0x31,   // Space
-        "UPARRMAC": 0x7E,  // Up Arrow
-        "DOWNARRMAC": 0x7D, // Down Arrow
-        "LEFTARRMAC": 0x7B, // Left Arrow
-        "RIGHTARRMAC": 0x7C, // Right Arrow
-        "F1MAC": 0x7A,      // F1
-        "F2MAC": 0x78,      // F2
-        "F3MAC": 0x63,      // F3
-        "F4MAC": 0x76,      // F4
-        "F5MAC": 0x60,      // F5
-        "F6MAC": 0x61,      // F6
-        "F7MAC": 0x62,      // F7
-        "F8MAC": 0x64,      // F8
-        "F9MAC": 0x65,      // F9
-        "F10MAC": 0x6D,     // F10
-        "F11MAC": 0x67,     // F11
-        "F12MAC": 0x6F,     // F12
-        "0MAC": 0x52,       // 0
-        "1MAC": 0x53,       // 1
-        "2MAC": 0x54,       // 2
-        "3MAC": 0x55,       // 3
-        "4MAC": 0x56,       // 4
-        "5MAC": 0x57,       // 5
-        "6MAC": 0x58,       // 6
-        "7MAC": 0x59,       // 7
-        "8MAC": 0x5A,       // 8
-        "9MAC": 0x5B,       // 9
-        "NUMPAD0MAC": 0x4F, // Numpad 0
-        "NUMPAD1MAC": 0x50, // Numpad 1
-        "NUMPAD2MAC": 0x51, // Numpad 2
-        "NUMPAD3MAC": 0x52, // Numpad 3
-        "NUMPAD4MAC": 0x53, // Numpad 4
-        "NUMPAD5MAC": 0x54, // Numpad 5
-        "NUMPAD6MAC": 0x55, // Numpad 6
-        "NUMPAD7MAC": 0x56, // Numpad 7
-        "NUMPAD8MAC": 0x57, // Numpad 8
-        "NUMPAD9MAC": 0x58, // Numpad 9
-        "NUMPADADDMAC": 0x45,  // Numpad Add
-        "NUMPADSUBTRACTMAC": 0x4A, // Numpad Subtract
-        "NUMPADMULTIPLYMAC": 0x43, // Numpad Multiply
-        "NUMPADDIVIDEMAC": 0x4B, // Numpad Divide
-        "NUMPADDECIMALMAC": 0x41, // Numpad Decimal
-        "SHIFT_MAC": 0x38,   // ⇧ Shift
-        "DELETE_MAC": 0x75,  // Forward Delete
-        "RETURN_MAC": 0x24,  // Return
-        "ENTER_MAC": 0x4C,   // Enter
-        "ESCAPE_MAC": 0x35,  // Escape
-        "TAB_MAC": 0x30,     // Tab
-        "SPACE_MAC": 0x31,   // Space
-        "UP_ARROW_MAC": 0x7E,  // Up Arrow
-        "DOWN_ARROW_MAC": 0x7D, // Down Arrow
-        "LEFT_ARROW_MAC": 0x7B, // Left Arrow
-        "RIGHT_ARROW_MAC": 0x7C, // Right Arrow
-        "F1_MAC": 0x7A,      // F1
-        "F2_MAC": 0x78,      // F2
-        "F3_MAC": 0x63,      // F3
-        "F4_MAC": 0x76,      // F4
-        "F5_MAC": 0x60,      // F5
-        "F6_MAC": 0x61,      // F6
-        "F7_MAC": 0x62,      // F7
-        "F8_MAC": 0x64,      // F8
-        "F9_MAC": 0x65,      // F9
-        "F10_MAC": 0x6D,     // F10
-        "F11_MAC": 0x67,     // F11
-        "F12_MAC": 0x6F,     // F12
-        "0_MAC": 0x52,       // 0
-        "1_MAC": 0x53,       // 1
-        "2_MAC": 0x54,       // 2
-        "3_MAC": 0x55,       // 3
-        "4_MAC": 0x56,       // 4
-        "5_MAC": 0x57,       // 5
-        "6_MAC": 0x58,       // 6
-        "7_MAC": 0x59,       // 7
-        "8_MAC": 0x5A,       // 8
-        "9_MAC": 0x5B,       // 9
-        "NUMPAD0_MAC": 0x4F, // Numpad 0
-        "NUMPAD1_MAC": 0x50, // Numpad 1
-        "NUMPAD2_MAC": 0x51, // Numpad 2
-        "NUMPAD3_MAC": 0x52, // Numpad 3
-        "NUMPAD4_MAC": 0x53, // Numpad 4
-        "NUMPAD5_MAC": 0x54, // Numpad 5
-        "NUMPAD6_MAC": 0x55, // Numpad 6
-        "NUMPAD7_MAC": 0x56, // Numpad 7
-        "NUMPAD8_MAC": 0x57, // Numpad 8
-        "NUMPAD9_MAC": 0x58, // Numpad 9
-        "NUMPAD_ADD_MAC": 0x45,  // Numpad Add
-        "NUMPAD_SUBTRACT_MAC": 0x4A, // Numpad Subtract
-        "NUMPAD_MULTIPLY_MAC": 0x43, // Numpad Multiply
-        "NUMPAD_DIVIDE_MAC": 0x4B, // Numpad Divide
-        "NUMPAD_DECIMAL_MAC": 0x41, // Numpad Decimal
+        "ESCAPEMAC": 0x35,
+        "TABMAC": 0x30,
+        "RETURNMAC": 0x24,
+        "BACKSPACEMAC": 0x33,
+        "SPACEMAC": 0x31,
+
+        "F1MAC": 0x7A,
+        "F2MAC": 0x78,
+        "F3MAC": 0x63,
+        "F4MAC": 0x76,
+        "F5MAC": 0x60,
+        "F6MAC": 0x61,
+        "F7MAC": 0x62,
+        "F8MAC": 0x64,
+        "F9MAC": 0x65,
+        "F10MAC": 0x6D,
+        "F11MAC": 0x67,
+        "F12MAC": 0x6F,
+        "F13MAC": 0x69,
+        "F14MAC": 0x6B,
+        "F15MAC": 0x71,
+
+        "GRAVEACCENTMAC": 0x32,
+        "1MAC": 0x12,
+        "2MAC": 0x13,
+        "3MAC": 0x14,
+        "4MAC": 0x15,
+        "5MAC": 0x17,
+        "6MAC": 0x16,
+        "7MAC": 0x1A,
+        "8MAC": 0x1C,
+        "9MAC": 0x19,
+        "0MAC": 0x1D,
+        "MINUSMAC": 0x1B,
+        "EQUALSMAC": 0x18,
+
+        "QMAC": 0x0C,
+        "WMAC": 0x0D,
+        "EMAC": 0x0E,
+        "RMAC": 0x0F,
+        "TMAC": 0x11,
+        "YMAC": 0x10,
+        "UMAC": 0x20,
+        "IMAC": 0x22,
+        "OMAC": 0x1F,
+        "PMAC": 0x23,
+        "OPENBRACKETMAC": 0x21,
+        "CLOSEBRACKETMAC": 0x1E,
+        "BACKSLASHMAC": 0x2A,
+
+        "CAPSLOCKMAC": 0x39,
+        "AMAC": 0x00,
+        "SMAC": 0x01,
+        "DMAC": 0x02,
+        "FMAC": 0x03,
+        "GMAC": 0x05,
+        "HMAC": 0x04,
+        "JMAC": 0x26,
+        "KMAC": 0x28,
+        "LMAC": 0x25,
+        "SEMICOLONMAC": 0x29,
+        "SINGLEQUOTEMAC": 0x27,
+
+        "SHIFTMAC": 0x38,
+        "ZMAC": 0x06,
+        "XMAC": 0x07,
+        "CMAC": 0x08,
+        "VMAC": 0x09,
+        "BMAC": 0x0B,
+        "NMAC": 0x2D,
+        "MMAC": 0x2E,
+        "COMMAMAC": 0x2B,
+        "PERIODMAC": 0x2F,
+        "FORWARDSLASHMAC": 0x2C,
+
+        "CONTROL": 0x3B,
+        "RIGHTCONTROL": 0x3E,
+        "OPT": 0x3A,
+        "RIGHTOPT": 0x3D,
+        "CMD": 0x37,
+        "RIGHTCMD": 0x36,
+        "FUNCTION": 0x3F,
+
+        "HOMEMAC": 0x73,
+        "ENDMAC": 0x77,
+        "PGUPMAC": 0x74,
+        "PGDNMAC": 0x79,
+
+        "LEFTARRMAC": 0x7B,
+        "RIGHTARRMAC": 0x7C,
+        "DOWNARRMAC": 0x7D,
+        "UPARRMAC": 0x7E,
+
+        "DELMAC": 0x75,
+
+        "CONTEXTMAC": 0x72,
+
+        "NUMPADCLEARMAC": 0x47,
+        "NUMPADDIVIDEMAC": 0x4B,
+        "NUMPADMULTIPLYMAC": 0x43,
+        "NUMPADSUBTRACTMAC": 0x4E,
+        "NUMPADADDMAC": 0x45,
+
+        "NUMPAD0MAC": 0x4F,
+        "NUMPAD1MAC": 0x50,
+        "NUMPAD2MAC": 0x51,
+        "NUMPAD3MAC": 0x52,
+        "NUMPAD4MAC": 0x53,
+        "NUMPAD5MAC": 0x54,
+        "NUMPAD6MAC": 0x55,
+        "NUMPAD7MAC": 0x56,
+        "NUMPAD8MAC": 0x57,
+        "NUMPAD9MAC": 0x58,
+
+        "NUMPADDECIMALMAC": 0x41,
+        "NUMPADEQUALMAC": 0x51,
+        "ENTERMAC": 0x4C,
     ]
     
     private var commands: [RemoteCommand] = []
@@ -423,17 +492,17 @@ import UIKit
                 RemoteCommand(cmdString: "WIN", alias: "WIN"),
                 RemoteCommand(cmdString: "F11", alias: "F11"),
                 RemoteCommand(cmdString: "ESC", alias: "ESC"),
-                RemoteCommand(cmdString: "CTRL+SHIFT+ESC", alias: "任务管理器(Task Manager)"),
-                RemoteCommand(cmdString: "ALT+F1", alias: "N卡截图(Nvidia Screenshot)"),
-                RemoteCommand(cmdString: "ALT+F9", alias: "N卡录屏(Nvidia Screen Recording)"),
-                RemoteCommand(cmdString: "ALT+F4", alias: "关闭窗口(ALT+F4)"),
-                RemoteCommand(cmdString: "CTRL+A", alias: "全选(Select All)"),
-                RemoteCommand(cmdString: "CTRL+C", alias: "复制(Copy)"),
-                RemoteCommand(cmdString: "CTRL+V", alias: "粘贴(Paste)"),
-                RemoteCommand(cmdString: "WIN+D", alias: "切换桌面(Switch to Desktop)"),
-                RemoteCommand(cmdString: "WIN+P", alias: "多显模式(Project)"),
-                RemoteCommand(cmdString: "WIN+G", alias: "Xbox Game Bar"),
-                RemoteCommand(cmdString: "SHIFT+TAB", alias: "Steam Overlay"),
+                RemoteCommand(cmdString: "CTRL+SHIFT+ESC", alias: "=taskManager"),
+                RemoteCommand(cmdString: "ALT+F1", alias: "=nvidiaShot"),
+                RemoteCommand(cmdString: "ALT+F9", alias: "=nvidiaRec"),
+                RemoteCommand(cmdString: "ALT+F4", alias: "=closeWindow"),
+                RemoteCommand(cmdString: "CTRL+A", alias: "=selectAll"),
+                RemoteCommand(cmdString: "CTRL+C", alias: "=copy"),
+                RemoteCommand(cmdString: "CTRL+V", alias: "=paste"),
+                RemoteCommand(cmdString: "WIN+D", alias: "=switchDesktop"),
+                RemoteCommand(cmdString: "WIN+P", alias: "=projectDisplay"),
+                RemoteCommand(cmdString: "WIN+G", alias: "=xboxGameBar"),
+                RemoteCommand(cmdString: "SHIFT+TAB", alias: "=steamOverlay"),
             ]
             
             let data = try? NSKeyedArchiver.archivedData(withRootObject: defaultCommands, requiringSecureCoding: false)
@@ -449,7 +518,8 @@ import UIKit
     @objc public func extractAutoReleaseButtonStrings(from cmd: String) -> [String]? {
         let cmd = cmd.uppercased()
         let mergedKeys = (Set(CommandManager.keyboardButtonMappings.keys)
-                        .union(Set(CommandManager.mouseButtonMappings.keys)))
+                        .union(Set(CommandManager.mouseButtonMappings.keys))
+                        .union(Set(CommandManager.shortcutAllowedFunctionalButtonMappings.keys)))
         let keys = mergedKeys.joined(separator: "|")
         let pattern = "^(?:(\(keys))(?:\\+(\(keys))*)*)$"
 
@@ -476,7 +546,9 @@ import UIKit
         
         for key in keyStrings {
             if (CommandManager.keyboardButtonMappings.keys.contains(key)
-                || CommandManager.mouseButtonMappings.keys.contains(key)) {
+                || CommandManager.mouseButtonMappings.keys.contains(key)
+                || CommandManager.shortcutAllowedFunctionalButtonMappings.keys.contains(key)
+            ) {
                 validKeyStrings.append(key)
             } else {
                 print(" '\(key)' is not defined in key mappings")
@@ -490,7 +562,7 @@ import UIKit
         }
         
         for (index, key) in validKeyStrings.enumerated() {
-            print("Valid Key \(index): \(key)")
+            // print("Valid Key \(index): \(key)")
         }
         
         return validKeyStrings
@@ -499,56 +571,72 @@ import UIKit
     
     //super combo key button strings
     @objc public func extractCmdStrings(from input: String) -> [String]? {
-        let input = input.uppercased()
-        let combinedStrings =  [CommandManager.keyboardButtonMappings.keys.map { $0 as String },
-                                CommandManager.oscButtonMappings.keys.map { $0 as String },
-                                CommandManager.mouseButtonMappings.keys.map { $0 as String },
-                                CommandManager.functionalButtonCmds.map { $0 as String },
-                                CommandManager.motionControlButtonCmds.map { $0 as String },
-                                CommandManager.touchPadCmds.map { $0 as String }
-                                ]
-                                .lazy
-                                .flatMap { $0 }  // 三维展开
-                                .map(String.init(describing:)) // 安全类型转换
-        
-        let keys = combinedStrings.joined(separator: "|")
-        let pattern = "^(?:\(keys))(?:-(?:\(keys)))*(?:-\\d+MS)?$"
-
-        
-        guard let regex = try? NSRegularExpression(pattern: pattern, options: []) else {
-            print("Failed to create regex")
-            return nil
-        }
-        let range = NSRange(location: 0, length: input.utf16.count)
-        guard let match = regex.firstMatch(in: input, options: [], range: range) else {
-            print("No match found for input: \(input)")
-            return nil
-        }
-        // print("Regex matched for input: \(input)")
-        
-        let matchedString = (input as NSString).substring(with: match.range(at: 0))
-        let cmdStrings = matchedString.split(separator: "-").map { String($0) }
-        
-        guard !cmdStrings.isEmpty else {
-            print("No key strings found in the matched string")
-            return nil
-        }
-        
         var validCmdStrings: [String] = []
-        
-        for key in cmdStrings {
-            validCmdStrings.append(key)
+
+        if PublicUtils.isGUIWidgetPickerAvailable {
+            let cmdStrings = input
+                .split(separator: "-")
+                .map { String($0) }
+
+            guard !cmdStrings.isEmpty else {
+                print("No key strings found in the input string")
+                return nil
+            }
+
+            for key in cmdStrings {
+                validCmdStrings.append(key)
+            }
         }
-       
-        if validCmdStrings.isEmpty {
-            print("No valid key strings found in the matched string")
-            return nil
+        else {
+            let input = input.uppercased()
+            let combinedStrings =  [CommandManager.keyboardButtonMappings.keys.map { $0 as String },
+                                    CommandManager.oscButtonMappings.keys.map { $0 as String },
+                                    CommandManager.mouseButtonMappings.keys.map { $0 as String },
+                                    CommandManager.functionalButtonCmds.map { $0 as String },
+                                    CommandManager.motionControlButtonCmds.map { $0 as String },
+                                    CommandManager.touchPadCmds.map { $0 as String }
+            ]
+                .lazy
+                .flatMap { $0 }  // 三维展开
+                .map(String.init(describing:)) // 安全类型转换
+            
+            let keys = combinedStrings.joined(separator: "|")
+            let pattern = "^(?:\(keys))(?:-(?:\(keys)))*(?:-\\d+MS)?$"
+            
+            
+            guard let regex = try? NSRegularExpression(pattern: pattern, options: []) else {
+                print("Failed to create regex")
+                return nil
+            }
+            let range = NSRange(location: 0, length: input.utf16.count)
+            guard let match = regex.firstMatch(in: input, options: [], range: range) else {
+                print("No match found for input: \(input)")
+                return nil
+            }
+            // print("Regex matched for input: \(input)")
+            
+            let matchedString = (input as NSString).substring(with: match.range(at: 0))
+            let cmdStrings = matchedString.split(separator: "-").map { String($0) }
+            
+            guard !cmdStrings.isEmpty else {
+                print("No key strings found in the matched string")
+                return nil
+            }
+            
+            for key in cmdStrings {
+                validCmdStrings.append(key)
+            }
+            
+            if validCmdStrings.isEmpty {
+                print("No valid key strings found in the matched string")
+                return nil
+            }
+            
         }
         
         for (index, key) in validCmdStrings.enumerated() {
             print("Valid Key \(index): \(key)")
         }
-        
         return validCmdStrings
     }
 
@@ -574,6 +662,29 @@ import UIKit
     @objc public func getAllCommands() -> [RemoteCommand] {
         return commands
     }
+
+    public func reorderCommands(withIdentifiers identifiers: [String]) {
+        guard !identifiers.isEmpty else { return }
+
+        var remainingCommandsByID = Dictionary(grouping: commands, by: { $0.identifier })
+        var reorderedCommands: [RemoteCommand] = []
+
+        for identifier in identifiers {
+            guard var commandGroup = remainingCommandsByID[identifier],
+                  !commandGroup.isEmpty else {
+                continue
+            }
+            reorderedCommands.append(commandGroup.removeFirst())
+            remainingCommandsByID[identifier] = commandGroup
+        }
+
+        for command in commands where !reorderedCommands.contains(where: { $0 === command }) {
+            reorderedCommands.append(command)
+        }
+
+        commands = reorderedCommands
+        saveCommands()
+    }
     
     private func loadCommands() {
         if let savedCommandsData = UserDefaults.standard.data(forKey: "savedCommands") {
@@ -583,6 +694,7 @@ import UIKit
                     // Assign the unarchived commands to your property
                     print(" Assign the unarchived commands to your property ")
                     commands = savedCommands
+                    migrateDefaultCommandAliasesIfNeeded()
                 } else {
                     // Handle the case where the data could not be unarchived into the expected type
                     print("Data could not be unarchived into [RemoteCommand]")
@@ -599,10 +711,27 @@ import UIKit
             UserDefaults.standard.set(data, forKey: "savedCommands")
         }
     }
+
+    private func migrateDefaultCommandAliasesIfNeeded() {
+        var didMigrate = false
+        for command in commands {
+            guard let migratedAlias = Self.defaultCommandAliasMigrationMap[command.alias] else {
+                continue
+            }
+            command.alias = migratedAlias
+            didMigrate = true
+        }
+
+        if didMigrate {
+            saveCommands()
+        }
+    }
     
     @objc public func sendAutoReleaseComboCommand(cmdStrings: [String]?, delay: TimeInterval = 0.2, index: Int = 0, pressOnly: Bool = false, releaseOnly:Bool = false) { // we need a large delay for WAN streaming
         // 如果已处理完所有按键，则开始释放按键
-        guard let cmdStrings = cmdStrings else { return }
+        guard var cmdStrings = cmdStrings else { return }
+        
+        cmdStrings = cmdStrings.filter { !CommandManager.shortcutAllowedFunctionalButtonMappings.keys.contains($0)}
         
         if releaseOnly {
             for keyStr in cmdStrings.reversed() {

@@ -10,35 +10,47 @@
 //
 
 #import <UIKit/UIKit.h>
+#import <CoreMedia/CoreMedia.h>
 #import "DiscoveryManager.h"
 #import "PairManager.h"
 #import "StreamConfiguration.h"
-#import "HostCardView.h"
-#import "UIAppView.h"
 #import "AppAssetManager.h"
 #import "SWRevealViewController.h"
-#import "HostCollectionViewController.h"
 
+@class SettingsViewController;
+@class TemporaryApp;
+@class HostCollectionViewController;
 
-@interface MainFrameViewController : UICollectionViewController <DiscoveryCallback, PairCallback, AppCallback, AppAssetCallback, NSURLConnectionDelegate, SWRevealViewControllerDelegate, HostCardActionDelegate, AppViewUpdateLoopDelegate>
+@interface MainFrameViewController : UICollectionViewController <DiscoveryCallback, PairCallback, AppAssetCallback, NSURLConnectionDelegate, SWRevealViewControllerDelegate, UITextFieldDelegate>
+
 
 @property (nonatomic, strong) IBOutlet UIBarButtonItem *settingsButton;
-#if !TARGET_OS_TV
-@property (nonatomic, assign) bool settingsExpandedInStreamView;
-@property (nonatomic, assign) bool sessionLaunchedWithAbsoluteTouch;
+@property (nonatomic, strong) IBOutlet UIBarButtonItem *profilesButton;
+@property (weak, nonatomic) SettingsViewController *settingsViewController;
 @property (nonatomic, strong) HostCollectionViewController *hostCollectionVC;
+@property (nonatomic, strong, readonly) NSArray<TemporaryApp *> *sortedAppList;
+
+@property (nonatomic, assign) bool settingsExpandedInStreamView;
+@property (nonatomic, readonly) bool settingsViewExpanded;
+
+#if !TARGET_OS_TV
 @property (weak, nonatomic) IBOutlet UINavigationItem *navigationItem;
+#endif
 
-
--(void)expandSettingsView;
+- (void)expandSettingsView;
 - (void)closeSettingViewAnimated:(BOOL)anaimated;
 - (void)reloadStreamConfig;
 - (bool)isIPhonePortrait;
-- (void)quitRunningApp;
+- (bool)isInAppView;
+- (bool)isStreaming;
+- (TemporaryApp*)findRunningApp:(TemporaryHost*)host;
+- (void)quitApp:(TemporaryApp* )app;
+- (void)quitLaunchedApp;
+- (void)launchApp:(TemporaryApp *)app;
+- (void)quitRunningAppAndStart:(TemporaryApp *)app;
 - (NSInteger)requestForBitrate:(NSInteger)bitrateKbps;
-#endif
-- (void)fillResolutionTable:(CGSize*)resolutionTable externalDisplayMode:(NSInteger)externalDisplayMode;
-- (bool)isIPhone;
+
+- (void)fillResolutionTable:(CMVideoDimensions *)resolutionTable externalDisplayMode:(NSInteger)externalDisplayMode;
 - (void)setNeedsUpdateAllowedOrientation;
 
 @end

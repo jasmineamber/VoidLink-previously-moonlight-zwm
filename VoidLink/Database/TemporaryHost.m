@@ -45,6 +45,7 @@
     if(!(host.mac == nil || [host.mac isEqualToString:@"00:00:00:00:00:00"])) self.mac = host.mac; // try to fix invalid mac happens in some cases
     self.name = host.name;
     self.uuid = host.uuid;
+    self.controllerNavigationHighlightedAppID = host.controllerNavigationHighlightedAppID;
     self.serverCodecModeSupport = host.serverCodecModeSupport;
     self.serverCert = host.serverCert;
     
@@ -89,7 +90,7 @@
         NSError *error;
         parentHost.activeAddressPool = [NSKeyedArchiver archivedDataWithRootObject:self.activeAddressPool requiringSecureCoding:YES error:&error];
     }
-    else [self.activeAddressPool addObject:self.activeAddress];
+    else if(self.activeAddress) [self.activeAddressPool addObject:self.activeAddress];
     
     // NSLog(@"Persisting activeAddressPool, pool count %lu ... %f, host: %@", (unsigned long)self.activeAddressPool.count, CACurrentMediaTime(), self.name);
     
@@ -101,6 +102,7 @@
     }
     parentHost.name = self.name;
     parentHost.uuid = self.uuid;
+    parentHost.controllerNavigationHighlightedAppID = self.controllerNavigationHighlightedAppID;
     parentHost.serverCodecModeSupport = self.serverCodecModeSupport;
     parentHost.pairState = [NSNumber numberWithInt:self.pairState];
 }

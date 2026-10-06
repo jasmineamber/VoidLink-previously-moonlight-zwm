@@ -106,6 +106,9 @@
                     graphOpacity:(NSInteger)graphOpacity
                 renderingBackend:(NSInteger)renderingBackend
                  framePacingMode:(NSInteger)framePacingMode
+   interpolationMaximumDimension:(NSInteger)interpolationMaximumDimension
+  interpolationMaximumPixelCount:(NSInteger)interpolationMaximumPixelCount
+            streamDimensionScale:(CGFloat)streamDimensionScale
                   sendDummyEvent:(BOOL)sendDummyEvent
                rememberFoldState:(BOOL)rememberFoldState
               singleTapSensitivy:(CGFloat)singleTapSensitivy
@@ -123,13 +126,16 @@
                 leftClickDelayMs:(CGFloat)leftClickDelayMs
               settingsMenuOffset:(CGFloat)settingsMenuOffset
              passthroughGestures:(BOOL)passthroughGestures
-            mapControllerToMouse:(BOOL)mapControllerToMouse
+      enableControllerNavigation:(BOOL)enableControllerNavigation
   controllerMousePointerVelocity:(CGFloat)controllerMousePointerVelocity
              controllerMouseExpo:(CGFloat)controllerMouseExpo
         controllerGyroSwitchMode:(NSInteger)controllerGyroSwitchMode
              enableFrameTimebase:(BOOL)enableFrameTimebase
                asyncFrameDequeue:(BOOL)asyncFrameDequeue
         sdrPerformanceWorkaround:(BOOL)sdrPerformanceWorkaround
+              softKeyboardHeight:(CGFloat)softKeyboardHeight
+                   globeAsEscape:(BOOL)globeAsEscape
+        streamingRadialMenuDelay:(CGFloat)streamingRadialMenuDelay
           backgroundSessionTimer:(NSInteger)backgroundSessionTimer{
     
     __block Settings* settingsToSave = settings;
@@ -181,7 +187,7 @@
         settingsToSave.resolutionSelected = [NSNumber numberWithInteger:resolutionSelected];
         settingsToSave.externalDisplayMode = [NSNumber numberWithInteger:externalDisplayMode];
         settingsToSave.localMousePointerMode = [NSNumber numberWithInteger:localMousePointerMode];
-        settingsToSave.backroundSessionTimer = [NSNumber numberWithInteger:backgroundSessionTimer];
+        settingsToSave.backgroundSessionTimer = [NSNumber numberWithInteger:backgroundSessionTimer];
 
         settingsToSave.frameQueueSize = [NSNumber numberWithInteger:frameQueueSize];
         settingsToSave.enableFrameTimebase = enableFrameTimebase;
@@ -190,6 +196,9 @@
         settingsToSave.graphOpacity = [NSNumber numberWithInteger:graphOpacity];
         settingsToSave.renderingBackend = [NSNumber numberWithInteger:renderingBackend];
         settingsToSave.framePacingMode = [NSNumber numberWithInteger:framePacingMode];
+        settingsToSave.interpolationMaximumDimension = [NSNumber numberWithInteger:interpolationMaximumDimension];
+        settingsToSave.interpolationMaximumPixelCount = [NSNumber numberWithInteger:interpolationMaximumPixelCount];
+        settingsToSave.streamDimensionScale = [NSNumber numberWithDouble:streamDimensionScale];
         settingsToSave.sendDummyEvent = sendDummyEvent;
         settingsToSave.singleTapSensitivity = [NSNumber numberWithDouble:singleTapSensitivy];
         settingsToSave.hapticEngine = [NSNumber numberWithInteger:hapticEngine];
@@ -206,9 +215,12 @@
         settingsToSave.leftClickDelayMs = [NSNumber numberWithFloat:leftClickDelayMs];
         settingsToSave.settingsMenuOffset = [NSNumber numberWithFloat:settingsMenuOffset];
         settingsToSave.passthroughGestures = passthroughGestures;
-        settingsToSave.mapControllerToMouse = mapControllerToMouse;
+        settingsToSave.enableControllerNavigation = enableControllerNavigation;
         settingsToSave.controllerMousePointerVelocity = [NSNumber numberWithFloat:controllerMousePointerVelocity];
         settingsToSave.controllerMouseExpo = [NSNumber numberWithFloat:controllerMouseExpo];
+        settingsToSave.softKeyboardHeight = softKeyboardHeight;
+        settingsToSave.globeAsEscape = globeAsEscape;
+        settingsToSave.streamingRadialMenuDelay = @(streamingRadialMenuDelay);
         settingsToSave.rememberFoldState = rememberFoldState;
         [self saveData];
     }];
@@ -309,6 +321,13 @@
         Log(LOG_E, @"Unable to save hosts to database: %@", error);
     }
 
+#if TARGET_OS_TV
+    // Keep the one-shot startup snapshot current until Settings consumes it.
+    // After consumption AppDelegate intentionally ignores these refreshes.
+    TemporarySettings *settingsSnapshot = [[TemporarySettings alloc] initFromSettings:[self retrieveSettings]];
+    [_appDelegate refreshTvOSInitialSettingsSnapshot:settingsSnapshot];
+#endif
+
     [_appDelegate saveContext];
 }
 
@@ -364,4 +383,3 @@
 }
 
 @end
-

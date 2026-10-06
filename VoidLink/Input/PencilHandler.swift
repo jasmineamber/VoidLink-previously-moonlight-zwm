@@ -16,27 +16,51 @@ import UIKit
     weak var streamView: UIView?
     // private var tickTimer: SafeTimer
     private var pencilInteraction: Any?
-    private var streamAspectRatio: Float
+    @objc var streamAspectRatio: Float
     private var tickInterval: TimeInterval
     private var manualTick: Bool
     private var pencilTickEnabled: Bool
     private var pressureCurveEnabled: Bool = false
+    @objc private(set) var pencilTipOffset: CGPoint = .zero
     private var manualHoverFlag: Bool = false
     @objc static var hoverSupported: Bool = false
     // @objc static private(set) var autoHoverTermination: Bool = false
-    @objc static private(set) var hoverMode: PencilHoverMode = .HoverPencil
+    @objc static private(set) var pencilAndHoverMode: PencilAndHoverMode = .pencilOnly
     private(set) var pencilProEnabled: Bool = false
     private var isFirstMove: Bool = false
-    private var moveEventIndex: Int64 = 0
+    private var strokeSampleIndex: Int32 = 0
     private var initialMoveEventIndexLimit: Int64
     private var touchBeganForce: Float = 0
     @objc static private(set) var isDrawing: Bool = false
     @objc static private(set) var pencilPausesNativeTouch: Bool = false
+    
+    @objc var disableTilt: Bool = false
 
     // static private let oscProfileMan = OSCProfilesManager.sharedManager(CGRectZero)
     static private var selectedProfile:OSCProfile?
 
-    private var pressureLUT = PressureCurveLUT(curve: PressureCurve())
+    private var strokeLUT = PressureCurveLUT(curve: PressureCurve())
+    // private var initialTouchLUT = PressureCurveLUT(curve: PressureCurve())
+    private var phase1StrokeSampleIndexEnd:Int32 = 0
+    private var phase2StrokeSampleIndexEnd:Int32 = 0
+    private var phase2EqualizationStrength:Float = 0
+    
+    enum StrokePhase: UInt8, CaseIterable {
+        case phase1
+        case phase2
+        case phase3
+    }
+    private var strokePhase:StrokePhase = .phase1
+    
+    private func getStrokePhase(sampleIndex:Int32) -> StrokePhase {
+        if sampleIndex > phase2StrokeSampleIndexEnd {
+            return .phase3
+        }
+        if sampleIndex > phase1StrokeSampleIndexEnd {
+            return .phase2
+        }
+        return .phase1
+    }
 
     @objc init(streamView: UIView, settings: TemporarySettings) {
         self.streamView = streamView
@@ -44,6 +68,8 @@ import UIKit
         tickInterval = TimeInterval(settings.pencilTickIntervalUs.floatValue/1000000)
         manualTick = settings.pencilTickMode.intValue == PencilTickMode.ManualTick.rawValue
         pencilTickEnabled = settings.pencilTickMode.intValue != PencilTickMode.PencilTickDisabled.rawValue
+        pencilTipOffset = CGPoint(x: CGFloat(settings.pencilTipOffsetX?.floatValue ?? 0),
+                                  y: CGFloat(settings.pencilTipOffsetY?.floatValue ?? 0))
         // initialMoveEventIndexLimit = UIScreen.main.maximumFramesPerSecond > 60 ? 4 : 2
         initialMoveEventIndexLimit = 0
         super.init()
@@ -80,7 +106,7 @@ import UIKit
         }
         
         // PencilHandler.autoHoverTermination = selectedProfile.autoPencilHoverTermination
-        PencilHandler.hoverMode = selectedProfile.pencilHoverMode
+        PencilHandler.pencilAndHoverMode = selectedProfile.pencilAndHoverMode
         
         pressureCurveEnabled = selectedProfile.pressureCurveEnabled
         
@@ -88,6 +114,7 @@ import UIKit
             IAPManager.checkPurchaseInfo(.PencilProPack) { info in
                 self.pressureCurveEnabled = self.pressureCurveEnabled && info.valid
                 self.pencilTickEnabled = self.pencilTickEnabled && info.valid
+                self.pencilTipOffset = info.valid ? self.pencilTipOffset : .zero
                 self.pencilProEnabled = info.valid
                 PencilHandler.pencilPausesNativeTouch = selectedProfile.pencilPausesNativeTouch && info.valid
                 if info.valid {
@@ -96,12 +123,23 @@ import UIKit
             }
         }
         
-        let persistedCurvePoints = PressureCurve.importCurvePoints(selectedProfile.pressureCurvePoints)
-        let curve = PressureCurve()
-        curve.polylinePoints = persistedCurvePoints
-        curve.buildCurveSegments()
+        let strokePressureCurvePoints = PressureCurve.importCurvePoints(selectedProfile.pressureCurvePoints)
+        let strokePressureCurve = PressureCurve()
+        strokePressureCurve.polylinePoints = strokePressureCurvePoints
+        strokePressureCurve.buildCurveSegments()
+        
+        // let initialTouchPressureCurvePoints = PressureCurve.importCurvePoints(selectedProfile.initialTouchPressureCurvePoints)
+        // let initialTouchPressureCurve = PressureCurve()
+        // initialTouchPressureCurve.polylinePoints = initialTouchPressureCurvePoints
+        // initialTouchPressureCurve.buildCurveSegments()
+        
+        phase1StrokeSampleIndexEnd = selectedProfile.phase1StrokeSampleIndexEnd
+        phase2StrokeSampleIndexEnd = selectedProfile.phase2StrokeSampleIndexEnd
+        phase2EqualizationStrength = Float(selectedProfile.strokeEqualizationStrength)
+
         DispatchQueue.main.asyncAfter(deadline: .now()) {
-            self.pressureLUT = PressureCurveLUT(curve: curve)
+            self.strokeLUT = PressureCurveLUT(curve: strokePressureCurve)
+            // self.initialTouchLUT = PressureCurveLUT(curve: initialTouchPressureCurve)
         }
     }
 
@@ -109,26 +147,63 @@ import UIKit
 
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
         guard let event = event else { return }
+        previousForce = 0
+        previousTargetForce = 0
         PencilHandler.isDrawing = true
         // isFirstMove = true
-        moveEventIndex = 0
+        strokeSampleIndex = 0
+        strokePhase = .phase1
+        
+        guard PencilHandler.pencilAndHoverMode == .pencilOnly || PencilHandler.pencilAndHoverMode == .hoverDisabled else {
+            handleNonPencilModes(touches)
+            return
+        }
+        
         for touch in touches {
+            previousTipLocation = touch.preciseLocation(in: streamView)
             let coalesced = event.coalescedTouches(for: touch) ?? []
             _ = self.sendStylusEvent(touchBatch: pencilTickEnabled ? coalesced : [touch])
         }
     }
 
+    private var previousTipLocation: CGPoint?
+    private var refreshRate: CGFloat = {
+        return CGFloat(UIScreen.main.maximumFramesPerSecond)
+    }()
+    
+    private func speed(of touch:UITouch) -> CGFloat {
+        guard let previousTipLocation else { return 0 }
+        let currentLocation = touch.preciseLocation(in: streamView)
+        let speed = hypot(currentLocation.x - previousTipLocation.x, currentLocation.y - previousTipLocation.y)*(refreshRate/60)
+        self.previousTipLocation = currentLocation
+        return speed
+    }
+    
     override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) {
         guard let event = event else { return }
+        
+        guard PencilHandler.pencilAndHoverMode == .pencilOnly || PencilHandler.pencilAndHoverMode == .hoverDisabled else {
+            handleNonPencilModes(touches)
+            return
+        }
+        
         for touch in touches {
             let coalesced = event.coalescedTouches(for: touch) ?? []
-            _ = self.sendStylusEvent(touchBatch: pencilTickEnabled ? coalesced : [touch])
+            _ = self.sendStylusEvent(touchBatch:
+                                    pencilTickEnabled && !(speed(of: touch) <= 0.5 && strokePhase == .phase3)
+                                     ? coalesced
+                                     : [touch])
         }
-        moveEventIndex += 1
     }
 
     override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
         guard let event = event else { return }
+        
+        guard PencilHandler.pencilAndHoverMode == .pencilOnly || PencilHandler.pencilAndHoverMode == .hoverDisabled else {
+            handleNonPencilModes(touches)
+            return
+        }
+
         for touch in touches {
             let coalesced = event.coalescedTouches(for: touch) ?? []
             _ = self.sendStylusEvent(touchBatch: pencilTickEnabled ? coalesced : [touch])
@@ -137,6 +212,34 @@ import UIKit
 
     override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent?) {
         self.touchesEnded(touches, with: event)
+    }
+    
+    private func handleNonPencilModes(_ touches: Set<UITouch>) {
+        guard let touch = touches.first else { return }
+        let location = touch.location(in: streamView)
+        let normalizedLocation = self.getNormalizedLocation(point: location)
+        if let streamView = streamView as? StreamView {
+            switch touch.phase {
+            case .began where PencilHandler.pencilAndHoverMode == .pencilToMouse:
+                streamView.updateCursorLocation(location, isMouse: false)
+                LiSendMouseButtonEvent(CChar(BUTTON_ACTION_PRESS), BUTTON_LEFT)
+            case .began where PencilHandler.pencilAndHoverMode == .pencilToTouch:
+                LiSendTouchEvent(UInt8(LI_TOUCH_EVENT_DOWN), 666666, Float(normalizedLocation.x), Float(normalizedLocation.y), Float((touch.force/touch.maximumPossibleForce)/sin(touch.altitudeAngle)), 0, 0, getRotation(fromAzimuthAngle: Float(touch.azimuthAngle(in: streamView))))
+            case .moved where PencilHandler.pencilAndHoverMode == .pencilToMouse:
+                streamView.updateCursorLocation(location, isMouse: false)
+            case .moved where PencilHandler.pencilAndHoverMode == .pencilToTouch:
+                LiSendTouchEvent(UInt8(LI_TOUCH_EVENT_MOVE), 666666, Float(normalizedLocation.x), Float(normalizedLocation.y), Float((touch.force/touch.maximumPossibleForce)/sin(touch.altitudeAngle)), 0, 0, getRotation(fromAzimuthAngle: Float(touch.azimuthAngle(in: streamView))))
+            case .ended where PencilHandler.pencilAndHoverMode == .pencilToMouse,
+                 .cancelled where PencilHandler.pencilAndHoverMode == .pencilToMouse:
+                streamView.updateCursorLocation(location, isMouse: false)
+                LiSendMouseButtonEvent(CChar(BUTTON_ACTION_RELEASE), BUTTON_LEFT)
+            case .ended where PencilHandler.pencilAndHoverMode == .pencilToTouch,
+                 .cancelled where PencilHandler.pencilAndHoverMode == .pencilToTouch:
+                LiSendTouchEvent(UInt8(LI_TOUCH_EVENT_UP), 666666, Float(normalizedLocation.x), Float(normalizedLocation.y), 0, 0, 0, 0)
+            default:
+                break
+            }
+        }
     }
 
     // MARK: - Core Logic
@@ -191,9 +294,20 @@ import UIKit
     
     func getTilt(fromAltitudeAngle altitudeAngle: Float) -> UInt8 {
         let altitudeDegs = abs(Int16(altitudeAngle * (180.0 / .pi)))
-        return UInt8(90 - min(90, Int(altitudeDegs)))
+        let tilt = disableTilt ? 0 : UInt8(90 - min(90, Int(altitudeDegs)))
+        return tilt
+    }
+    
+    private func getNormalizedLocation(point: CGPoint) -> CGPoint {
+        let location = self.adjustCoordinatesForVideoArea(point: point)
+        let videoSize = self.getVideoAreaSize()
+        let normalizedLocation = CGPoint(x: location.x/videoSize.width, y: location.y/videoSize.height)
+        return normalizedLocation
     }
 
+    var previousForce: Float = 0
+    var previousTargetForce: Float = 0
+    var phase2IndexCount: Int32 = 0
     private func sendStylusEvent(touchBatch: [UITouch], with event: UIEvent? = nil) -> DispatchTime {
         guard let streamView = streamView, touchBatch.count>0 else { return .now() }
         
@@ -201,30 +315,62 @@ import UIKit
         var previousTimeStamp: TimeInterval = 0
         var delay:TimeInterval = 0
         var dispatchMoment: DispatchTime = .now()
+        
+        phase2IndexCount = phase2StrokeSampleIndexEnd - phase1StrokeSampleIndexEnd
 
         for touch in touchBatch {
             let point = touch.preciseLocation(in: streamView)
+                .applying(CGAffineTransform(translationX: pencilTipOffset.x, y: pencilTipOffset.y))
             let azimuth = touch.azimuthAngle(in: streamView)
             let altitude = touch.altitudeAngle
-            let location = self.adjustCoordinatesForVideoArea(point: point)
-            let videoSize = self.getVideoAreaSize()
-            let normalizedLocation = CGPoint(x: location.x/videoSize.width, y: location.y/videoSize.height)
-            let force = Float(touch.force/touch.maximumPossibleForce)/sin(Float(altitude))
-            var targetForce = pressureCurveEnabled ? self.pressureLUT.value(at: force) : force
+            let normalizedLocation = self.getNormalizedLocation(point: point)
+            var force = Float(touch.force/touch.maximumPossibleForce)/sin(Float(altitude))
+            force  = (self.pencilTickEnabled && force == 0) ? previousForce : force
+            
+            self.strokeSampleIndex += 1
 
+            var targetForce:Float
+            var equalizationStep:Float = 0
+            var equalizedForce:Float = 0
+            if(phase2IndexCount>0){
+                equalizationStep = (phase2EqualizationStrength-1)/Float(phase2IndexCount-1)
+            }
+
+            
+            strokePhase = getStrokePhase(sampleIndex: self.strokeSampleIndex)
+            let forceMapping = pressureCurveEnabled ? self.strokeLUT.value(at: force) : force
+            switch strokePhase {
+            case .phase1:
+                targetForce = pencilTickEnabled ? 0 : forceMapping
+            case .phase2:
+                targetForce = forceMapping
+                targetForce = max(targetForce,previousTargetForce)
+                equalizedForce = targetForce*(phase2EqualizationStrength - equalizationStep*Float(strokeSampleIndex-phase1StrokeSampleIndexEnd-1))
+            case .phase3:
+                targetForce = forceMapping
+            }
+            targetForce = pencilTickEnabled ? targetForce : force
+            
+            previousForce = force
+            previousTargetForce = targetForce
+            
             let eventType:UInt8
             
             switch touch.phase {
             case .began:
                 eventType = UInt8(manualHoverFlag ? LI_TOUCH_EVENT_HOVER : LI_TOUCH_EVENT_DOWN)
-                touchBeganForce = targetForce
             case .moved:
                 eventType = UInt8(manualHoverFlag ? LI_TOUCH_EVENT_HOVER : LI_TOUCH_EVENT_MOVE)
-                targetForce = moveEventIndex < initialMoveEventIndexLimit ? touchBeganForce : targetForce
             case .ended:
                 eventType = UInt8(manualHoverFlag ? LI_TOUCH_EVENT_HOVER_LEAVE : LI_TOUCH_EVENT_UP)
+                targetForce = 0
+                previousForce = 0
+                previousTargetForce = 0
             case .cancelled:
                 eventType = UInt8(manualHoverFlag ? LI_TOUCH_EVENT_HOVER_LEAVE : LI_TOUCH_EVENT_UP)
+                targetForce = 0
+                previousForce = 0
+                previousTargetForce = 0
             default:
                 eventType = UInt8(LI_TOUCH_EVENT_HOVER)
             }
@@ -241,20 +387,23 @@ import UIKit
                 tickMoment += (manualTick ? tickInterval : touch.timestamp - previousTimeStamp)
             }
             
-            let sendableForce = targetForce
+            let sendableForce = strokePhase == .phase2 ? equalizedForce : targetForce
+
             DispatchQueue.global().asyncAfter(deadline: dispatchMoment + tickMoment + delay) {
-                
                 /*
                 if PencilHandler.autoHoverEnabled, eventType == UInt8(LI_TOUCH_EVENT_DOWN) {
                     LiSendPenEvent(UInt8(LI_TOUCH_EVENT_HOVER_LEAVE), UInt8(LI_TOOL_TYPE_PEN), 0, Float(normalizedLocation.x), Float(normalizedLocation.y), 0, 0, 0, self.getRotation(fromAzimuthAngle: Float(azimuth)), self.getTilt(fromAltitudeAngle: Float(altitude)))
                 }
                 */
                 
-                LiSendPenEvent(eventType, UInt8(LI_TOOL_TYPE_PEN), 0, Float(normalizedLocation.x), Float(normalizedLocation.y), sendableForce, 0, 0, self.getRotation(fromAzimuthAngle: Float(azimuth)), self.getTilt(fromAltitudeAngle: Float(altitude)))
+                if self.strokePhase != .phase1 || !self.pencilTickEnabled {LiSendPenEvent(eventType, UInt8(LI_TOOL_TYPE_PEN), 0, Float(normalizedLocation.x), Float(normalizedLocation.y), sendableForce, 0, 0, self.getRotation(fromAzimuthAngle: Float(azimuth)), self.getTilt(fromAltitudeAngle: Float(altitude)))}
+                else {
+                    LiSendPenEvent(UInt8(LI_TOUCH_EVENT_HOVER), UInt8(LI_TOOL_TYPE_PEN), 0, Float(normalizedLocation.x), Float(normalizedLocation.y), 0, 0, 0, self.getRotation(fromAzimuthAngle: Float(azimuth)), self.getTilt(fromAltitudeAngle: Float(altitude)))
+                }
                 
                 if eventType == UInt8(LI_TOUCH_EVENT_UP) {
                     PencilHandler.isDrawing = false
-                    if PencilHandler.hoverMode == .HoverDisabled || !PencilHandler.hoverSupported {
+                    if PencilHandler.pencilAndHoverMode == .hoverDisabled || !PencilHandler.hoverSupported {
                         LiSendPenEvent(UInt8(LI_TOUCH_EVENT_HOVER), UInt8(LI_TOOL_TYPE_PEN), 0, Float(normalizedLocation.x), Float(normalizedLocation.y), 0, 0, 0, self.getRotation(fromAzimuthAngle: Float(azimuth)), self.getTilt(fromAltitudeAngle: Float(altitude)))
                         DispatchQueue.global().asyncAfter(deadline: .now() + 0.0086){
                             if !PencilHandler.isDrawing {
@@ -271,6 +420,10 @@ import UIKit
     
     @objc public func switchPencilHover(){
         manualHoverFlag = !manualHoverFlag
+    }
+
+    @objc public func updatePencilTipOffset(x: CGFloat, y: CGFloat) {
+        pencilTipOffset = CGPoint(x: x, y: y)
     }
     
     @objc public func enablePencilHover(){
@@ -346,25 +499,45 @@ import UIKit
             doubleTapShorcuts[i] = shortcut
         }
     }
+    
+    @available(iOS 13.0, *)
+    func widgetPickerViewController(_ controller: WidgetPickerViewController, didCreateWidget payload: NSDictionary) {
+        let params = payload.mutableCopy() as? NSMutableDictionary ?? NSMutableDictionary()
+        let pickerAction = ((params["pickerAction"] as? String) ?? "").lowercased()
+        params.removeObject(forKey: "pickerAction")
+        
+        if pickerAction == "create" {
+            
+        }
+    }
 
     @objc static public func enterDoubleTapShortcuts(in viewController: UIViewController){
-        let oscProfileMan = OSCProfilesManager.sharedManager(CGRectZero)
-        selectedProfile = oscProfileMan.getSelectedProfile()
-        guard let selectedProfile = selectedProfile else {return}
-        
-        let alert = UIAlertController(title: SwiftLocalizationHelper.localizedString(forKey: "Eraser Shortcut"),
-                                      message: SwiftLocalizationHelper.localizedString(forKey: "Enter eraser keyboard shortcut:"),
+        if #available(iOS 13.0, *) {
+            let pickerViewController = WidgetPickerViewController()
+            pickerViewController.delegate = (viewController as! any WidgetPickerViewControllerDelegate)
+            pickerViewController.keyboardPickerMode = .shortcutPicker
+            pickerViewController.tabIdentifiers = ["keyboard", "shortcuts"]
+            pickerViewController.initialTabIdentifier = "keyboard"
+            pickerViewController.shortcutIdentifier = "eraser"
+            pickerViewController.shortcutPickerTipText = LocalizationHelper.localizedString(forKey: "Select eraser shortcut keys")
+            pickerViewController.presentOverFullScreen(from: viewController)
+            return
+        }
+
+        /*
+        let alert = UIAlertController(title: LocalizationHelper.localizedString(forKey: "Eraser Shortcut"),
+                                      message: LocalizationHelper.localizedString(forKey: "Enter eraser keyboard shortcut:"),
                                       preferredStyle: .alert)
         
         alert.addTextField { textField in
-            textField.placeholder = SwiftLocalizationHelper.localizedString(forKey:"Example: e, ctrl+e, alt+e ...")
+            textField.placeholder = LocalizationHelper.localizedString(forKey:"Example: e, ctrl+e, alt+e ...")
             textField.keyboardType = .asciiCapable
             textField.autocorrectionType = .no
             textField.spellCheckingType = .no
             textField.text = selectedProfile.eraserShortcut
         }
 
-        let okAction = UIAlertAction(title: SwiftLocalizationHelper.localizedString(forKey: "OK"), style: .default) { _ in
+        let okAction = UIAlertAction(title: LocalizationHelper.localizedString(forKey: "OK"), style: .default) { _ in
             let comboButtons = alert.textFields?[0].text ?? ""
             let keyStrings = CommandManager.shared.extractAutoReleaseButtonStrings(from: comboButtons)
             if keyStrings?.count ?? 0 > 0 || comboButtons == "" {
@@ -373,8 +546,8 @@ import UIKit
             enterBrushShortcut(in: viewController)
         }
         
-        let learnMoreAction = UIAlertAction(title: SwiftLocalizationHelper.localizedString(forKey: "Learn More"), style: .default) { _ in
-            if let url = URL(string: SwiftLocalizationHelper.localizedString(forKey: "pencilKeyboardCmdURL")) {
+        let learnMoreAction = UIAlertAction(title: LocalizationHelper.localizedString(forKey: "Learn More"), style: .default) { _ in
+            if let url = URL(string: LocalizationHelper.localizedString(forKey: "pencilKeyboardCmdURL")) {
                 UIApplication.shared.open(url, options: [:], completionHandler: nil)
             }
         }
@@ -385,23 +558,35 @@ import UIKit
         viewController.present(alert, animated: true, completion: {
         })
 
+        */
     }
     
+    @available(iOS 13.0, *)
     @objc static public func enterBrushShortcut(in viewController: UIViewController){
-                
-        let alert = UIAlertController(title: SwiftLocalizationHelper.localizedString(forKey: "Brush Shortcut"),
-                                      message: SwiftLocalizationHelper.localizedString(forKey: "Enter brush keyboard shortcut:"),
+        let pickerViewController = WidgetPickerViewController()
+        pickerViewController.delegate = (viewController as! any WidgetPickerViewControllerDelegate)
+        pickerViewController.keyboardPickerMode = .shortcutPicker
+        pickerViewController.tabIdentifiers = ["keyboard", "shortcuts"]
+        pickerViewController.initialTabIdentifier = "keyboard"
+        pickerViewController.shortcutIdentifier = "brush"
+        pickerViewController.shortcutPickerTipText = LocalizationHelper.localizedString(forKey: "Select brush shortcut keys")
+        pickerViewController.presentOverFullScreen(from: viewController)
+        return
+        
+        /*
+        let alert = UIAlertController(title: LocalizationHelper.localizedString(forKey: "Brush Shortcut"),
+                                      message: LocalizationHelper.localizedString(forKey: "Enter brush keyboard shortcut:"),
                                       preferredStyle: .alert)
         
         alert.addTextField { textField in
-            textField.placeholder = SwiftLocalizationHelper.localizedString(forKey:"Example: b, ctrl+b, alt+b ...")
+            textField.placeholder = LocalizationHelper.localizedString(forKey:"Example: b, ctrl+b, alt+b ...")
             textField.keyboardType = .asciiCapable
             textField.autocorrectionType = .no
             textField.spellCheckingType = .no
             textField.text = selectedProfile?.brushShortcut
         }
 
-        let okAction = UIAlertAction(title: SwiftLocalizationHelper.localizedString(forKey: "OK"), style: .default) { _ in
+        let okAction = UIAlertAction(title: LocalizationHelper.localizedString(forKey: "OK"), style: .default) { _ in
             let comboButtons = alert.textFields?[0].text ?? ""
             let keyStrings = CommandManager.shared.extractAutoReleaseButtonStrings(from: comboButtons)
             if keyStrings?.count ?? 0 > 0 || comboButtons == "" {
@@ -418,8 +603,8 @@ import UIKit
             }
         }
         
-        let learnMoreAction = UIAlertAction(title: SwiftLocalizationHelper.localizedString(forKey: "Learn More"), style: .default) { _ in
-            if let url = URL(string: SwiftLocalizationHelper.localizedString(forKey: "pencilKeyboardCmdURL")) {
+        let learnMoreAction = UIAlertAction(title: LocalizationHelper.localizedString(forKey: "Learn More"), style: .default) { _ in
+            if let url = URL(string: LocalizationHelper.localizedString(forKey: "pencilKeyboardCmdURL")) {
                 UIApplication.shared.open(url, options: [:], completionHandler: nil)
             }
         }
@@ -430,30 +615,41 @@ import UIKit
         viewController.present(alert, animated: true, completion: {
             
         })
-
+         */
     }
     
     @objc static private(set) var squeezeStartShortcut:String = ""
     @objc static private(set) var squeezeEndShortcut:String = ""
     
     @objc static public func enterSqueezeShortcuts(in viewController: UIViewController){
+        if #available(iOS 13.0, *) {
+            let pickerViewController = WidgetPickerViewController()
+            pickerViewController.delegate = (viewController as! any WidgetPickerViewControllerDelegate)
+            pickerViewController.keyboardPickerMode = .shortcutPicker
+            pickerViewController.tabIdentifiers = ["keyboard", "shortcuts"]
+            pickerViewController.initialTabIdentifier = "keyboard"
+            pickerViewController.shortcutIdentifier = "squeezePress"
+            pickerViewController.shortcutPickerTipText = LocalizationHelper.localizedString(forKey: "squeezePressShortcutPickerTip")
+            pickerViewController.presentOverFullScreen(from: viewController)
+        }
+        /*
         let oscProfileMan = OSCProfilesManager.sharedManager(CGRectZero)
         selectedProfile = oscProfileMan.getSelectedProfile()
         guard let selectedProfile = selectedProfile else {return}
         
-        let alert = UIAlertController(title: SwiftLocalizationHelper.localizedString(forKey: "Squeeze Shortcut"),
-                                      message: SwiftLocalizationHelper.localizedString(forKey: "enterSqueezePressShort"),
+        let alert = UIAlertController(title: LocalizationHelper.localizedString(forKey: "Squeeze Shortcut"),
+                                      message: LocalizationHelper.localizedString(forKey: "enterSqueezePressShort"),
                                       preferredStyle: .alert)
         
         alert.addTextField { textField in
-            textField.placeholder = SwiftLocalizationHelper.localizedString(forKey:"Example: e, ctrl+e, alt+e ...")
+            textField.placeholder = LocalizationHelper.localizedString(forKey:"Example: e, ctrl+e, alt+e ...")
             textField.keyboardType = .asciiCapable
             textField.autocorrectionType = .no
             textField.spellCheckingType = .no
             textField.text = selectedProfile.squeezeStartShortcut
         }
 
-        let okAction = UIAlertAction(title: SwiftLocalizationHelper.localizedString(forKey: "OK"), style: .default) { _ in
+        let okAction = UIAlertAction(title: LocalizationHelper.localizedString(forKey: "OK"), style: .default) { _ in
             let comboButtons = alert.textFields?[0].text ?? ""
             let keyStrings = CommandManager.shared.extractAutoReleaseButtonStrings(from: comboButtons)
             if keyStrings?.count ?? 0 > 0 || comboButtons == "" {
@@ -462,8 +658,8 @@ import UIKit
             enterSqueezeEndShortcut(in: viewController)
         }
         
-        let learnMoreAction = UIAlertAction(title: SwiftLocalizationHelper.localizedString(forKey: "Learn More"), style: .default) { _ in
-            if let url = URL(string: SwiftLocalizationHelper.localizedString(forKey: "pencilKeyboardCmdURL")) {
+        let learnMoreAction = UIAlertAction(title: LocalizationHelper.localizedString(forKey: "Learn More"), style: .default) { _ in
+            if let url = URL(string: LocalizationHelper.localizedString(forKey: "pencilKeyboardCmdURL")) {
                 UIApplication.shared.open(url, options: [:], completionHandler: nil)
             }
         }
@@ -473,23 +669,35 @@ import UIKit
 
         viewController.present(alert, animated: true, completion: {
         })
+        */
     }
 
     @objc static public func enterSqueezeEndShortcut(in viewController: UIViewController){
-                
-        let alert = UIAlertController(title: SwiftLocalizationHelper.localizedString(forKey: "Squeeze Shortcut"),
-                                      message: SwiftLocalizationHelper.localizedString(forKey: "enterSqueezeReleaseShort"),
+        if #available(iOS 13.0, *) {
+            let pickerViewController = WidgetPickerViewController()
+            pickerViewController.delegate = (viewController as! any WidgetPickerViewControllerDelegate)
+            pickerViewController.keyboardPickerMode = .shortcutPicker
+            pickerViewController.tabIdentifiers = ["keyboard", "shortcuts"]
+            pickerViewController.initialTabIdentifier = "keyboard"
+            pickerViewController.shortcutIdentifier = "squeezeRelease"
+            pickerViewController.shortcutPickerTipText = LocalizationHelper.localizedString(forKey: "squeezeReleaseShortcutPickerTip")
+            pickerViewController.presentOverFullScreen(from: viewController)
+        }
+        
+        /*
+        let alert = UIAlertController(title: LocalizationHelper.localizedString(forKey: "Squeeze Shortcut"),
+                                      message: LocalizationHelper.localizedString(forKey: "enterSqueezeReleaseShort"),
                                       preferredStyle: .alert)
         
         alert.addTextField { textField in
-            textField.placeholder = SwiftLocalizationHelper.localizedString(forKey:"Example: b, ctrl+b, alt+b ...")
+            textField.placeholder = LocalizationHelper.localizedString(forKey:"Example: b, ctrl+b, alt+b ...")
             textField.keyboardType = .asciiCapable
             textField.autocorrectionType = .no
             textField.spellCheckingType = .no
             textField.text = selectedProfile?.squeezeEndShortcut
         }
 
-        let okAction = UIAlertAction(title: SwiftLocalizationHelper.localizedString(forKey: "OK"), style: .default) { _ in
+        let okAction = UIAlertAction(title: LocalizationHelper.localizedString(forKey: "OK"), style: .default) { _ in
             let comboButtons = alert.textFields?[0].text ?? ""
             let keyStrings = CommandManager.shared.extractAutoReleaseButtonStrings(from: comboButtons)
             if keyStrings?.count ?? 0 > 0 || comboButtons == "" {
@@ -506,8 +714,8 @@ import UIKit
             }
         }
         
-        let learnMoreAction = UIAlertAction(title: SwiftLocalizationHelper.localizedString(forKey: "Learn More"), style: .default) { _ in
-            if let url = URL(string: SwiftLocalizationHelper.localizedString(forKey: "pencilKeyboardCmdURL")) {
+        let learnMoreAction = UIAlertAction(title: LocalizationHelper.localizedString(forKey: "Learn More"), style: .default) { _ in
+            if let url = URL(string: LocalizationHelper.localizedString(forKey: "pencilKeyboardCmdURL")) {
                 UIApplication.shared.open(url, options: [:], completionHandler: nil)
             }
         }
@@ -518,6 +726,7 @@ import UIKit
         viewController.present(alert, animated: true, completion: {
             
         })
+         */
     }
     
     private func attachHoverLeave(normalizedLocation:CGPoint){

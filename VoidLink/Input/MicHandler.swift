@@ -6,7 +6,6 @@
 //  Copyright © 2025 True砖家 on Bilibili. All rights reserved.
 
 import AVFoundation
-import Collections
 
 @objc public protocol MicHandlerDelegate: AnyObject {
     @objc optional func micHandlerDidFinishPlayback(_ handler: MicHandler)
@@ -73,6 +72,9 @@ public class MicHandler: NSObject {
     /// 请求麦克风权限
     /// - Parameter completion: 可选 block，如果为 nil 且未授权，会弹窗提示跳转系统设置
     @objc static func requestPermission(_ completion: ((Bool) -> Void)? = nil) {
+#if os(tvOS)
+        completion?(false)
+#else
         let permission = AVAudioSession.sharedInstance().recordPermission
         switch permission {
         case .granted:
@@ -104,18 +106,19 @@ public class MicHandler: NSObject {
                 showSettingsAlert()
             }
         }
+#endif
     }
         
     /// 弹窗提示用户跳转系统设置（英文版）
     private static func showSettingsAlert() {
         guard let topVC = topViewController() else { return }
         let alert = UIAlertController(
-            title:  SwiftLocalizationHelper.localizedString(forKey: "Microphone Permission") ,
-            message: SwiftLocalizationHelper.localizedString(forKey: "micPermissionTip"),
+            title:  LocalizationHelper.localizedString(forKey: "Microphone Permission") ,
+            message: LocalizationHelper.localizedString(forKey: "micPermissionTip"),
             preferredStyle: .alert
         )
-        alert.addAction(UIAlertAction(title: SwiftLocalizationHelper.localizedString(forKey: "Cancel"), style: .cancel, handler: nil))
-        alert.addAction(UIAlertAction(title: SwiftLocalizationHelper.localizedString(forKey: "Go to Settings") , style: .default, handler: { _ in
+        alert.addAction(UIAlertAction(title: LocalizationHelper.localizedString(forKey: "Cancel"), style: .cancel, handler: nil))
+        alert.addAction(UIAlertAction(title: LocalizationHelper.localizedString(forKey: "Go to Settings") , style: .default, handler: { _ in
             openSettings()
         }))
         topVC.present(alert, animated: true, completion: nil)
@@ -130,7 +133,11 @@ public class MicHandler: NSObject {
     
     /// 检查麦克风权限状态（返回 Int，OC 可用）
     @objc static func permissionGranted() -> Bool {
+#if os(tvOS)
+        return false
+#else
         return AVAudioSession.sharedInstance().recordPermission == AVAudioSession.RecordPermission.granted
+#endif
     }
     
     /// 获取最顶层 UIViewController
@@ -190,7 +197,7 @@ public class MicHandler: NSObject {
         // Optional: But defaults are fine. Only change when needed:
         opus_encoder_ctl_wrapper(enc, Int32(OPUS_SET_BITRATE_REQUEST), opus_int32(64000))      // Set bitrate
         opus_encoder_ctl_wrapper(enc, Int32(OPUS_SET_COMPLEXITY_REQUEST), opus_int32(5))         // Set complexity
-        opus_encoder_ctl_wrapper(enc, Int32(OPUS_SET_SIGNAL_REQUEST), OPUS_SIGNAL_MUSIC)      // Set signal type
+        opus_encoder_ctl_wrapper(enc, Int32(OPUS_SET_SIGNAL_REQUEST), OPUS_SIGNAL_VOICE)      // Set signal type
     }
 
     @objc public func startTapping() {
@@ -248,7 +255,7 @@ public class MicHandler: NSObject {
                 var packet = [UInt8](repeating: 0, count: 4000)
                 guard let enc = self.opusEncoder else {return}
                 let outBytes = opus_encode(enc, chunk, 960, &packet, Int32(packet.count))
-                sendMicrophoneData(packet, outBytes)
+                sendMicrophoneOpusData(packet, outBytes)
                 let removeCount = min(960, pcm16BufferDeque.count)
                 if removeCount > 0 {
                     pcm16BufferDeque.removeFirst(removeCount)
@@ -264,7 +271,7 @@ public class MicHandler: NSObject {
                 var packet = [UInt8](repeating: 0, count: 4000)
                 guard let enc = self.opusEncoder else {return}
                 let outBytes = opus_encode(enc, chunk, 960, &packet, Int32(packet.count))
-                sendMicrophoneData(packet, outBytes)
+                sendMicrophoneOpusData(packet, outBytes)
                 let removeCount = min(960, pcm16BufferArray.count)
                 if removeCount > 0 {
                     pcm16BufferArray.removeFirst(removeCount)

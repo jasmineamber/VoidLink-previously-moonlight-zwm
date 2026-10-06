@@ -15,13 +15,18 @@
 
 - (void)gamepadPresenceChanged;
 - (void)mousePresenceChanged;
+- (void)mouseConnected;
+- (void)keyboardConnected;
 - (void)streamExitRequested;
+- (void)controllerArrivalWithPlayerIndex:(int8_t)index;
 
 @end
 
 @interface ControllerSupport : NSObject
 
 @property (readonly) bool shallDisableGyroHotSwitch;
+
++(nullable ControllerSupport*) sharedInstance;
 
 -(id) initWithConfig:(StreamConfiguration*)streamConfig delegate:(id<ControllerSupportDelegate>)delegate;
 -(void) connectionEstablished;
@@ -47,6 +52,28 @@
 -(void) rumbleTriggers:(uint16_t)controllerNumber leftTrigger:(uint16_t)leftTrigger rightTrigger:(uint16_t)rightTrigger;
 -(void) setMotionEventState:(uint16_t)controllerNumber motionType:(uint8_t)motionType reportRateHz:(uint16_t)reportRateHz;
 -(void) setControllerLed:(uint16_t)controllerNumber r:(uint8_t)r g:(uint8_t)g b:(uint8_t)b;
+-(void) setAdaptiveTriggers:(uint16_t)controllerNumber eventFlags:(uint8_t)eventFlags
+                    typeLeft:(uint8_t)typeLeft typeRight:(uint8_t)typeRight
+                        left:(const uint8_t*)left right:(const uint8_t*)right;
+-(void) renderDualSenseHaptics:(uint16_t)controllerNumber
+                 leftAmplitude:(float)leftAmplitude
+                 leftSharpness:(float)leftSharpness
+                 leftTransient:(float)leftTransient
+                rightAmplitude:(float)rightAmplitude
+                rightSharpness:(float)rightSharpness
+                rightTransient:(float)rightTransient
+                   delaySeconds:(double)delaySeconds;
+-(BOOL) hasDualSenseController:(uint16_t)controllerNumber;
+-(void) renderDeviceDualSenseHaptics:(uint16_t)controllerNumber
+                        leftAmplitude:(float)leftAmplitude
+                        leftSharpness:(float)leftSharpness
+                        leftTransient:(float)leftTransient
+                       rightAmplitude:(float)rightAmplitude
+                       rightSharpness:(float)rightSharpness
+                       rightTransient:(float)rightTransient
+                          delaySeconds:(double)delaySeconds;
+-(void) cancelScheduledDualSenseHaptics;
+-(void) updateTimerStateForOsc;
 
 -(uint16_t) getActiveGamepadMask;
 
@@ -55,5 +82,8 @@
 -(NSUInteger) getConnectedGamepadCount;
 
 -(void)updateControllerSupport:(StreamConfiguration*)streamConfig delegate:(id<ControllerSupportDelegate>)delegate;
+
+-(void) reinitiatePrimaryController;
+-(void)sendNavigationButtonPress;
 
 @end

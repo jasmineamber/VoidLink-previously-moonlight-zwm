@@ -10,16 +10,14 @@
 //
 
 #import "LayoutOnScreenControlsViewController.h"
-#import "OSCProfilesTableViewController.h"
 #import "OnScreenButtonState.h"
 #import "OnScreenControls.h"
-#import "OSCProfilesManager.h"
 #import "LocalizationHelper.h"
 #import "VoidLink-Swift.h"
-#import "ThemeManager.h"
+// #import "ThemeManager.h"
 #import "DataManager.h"
 
-@interface LayoutOnScreenControlsViewController ()
+@interface LayoutOnScreenControlsViewController () <WidgetPickerViewControllerDelegate>
 
 typedef NS_ENUM(NSUInteger, AlphaSliderMode) {
     widgetAlpha,
@@ -163,7 +161,7 @@ typedef NS_ENUM(NSUInteger, DecelerationRateSliderMode) {
             OnScreenButtonState* buttonState = [self->profilesManager unarchiveButtonStateEncoded:buttonStateEncoded];
             NSLog(@"reloadOnScreenWidgets name %@", buttonState.name);
             if(buttonState.widgetType == CustomOnScreenWidget){
-                OnScreenWidgetView* widgetView = [[OnScreenWidgetView alloc] initWithCmdString:buttonState.name buttonLabel:buttonState.alias shape:buttonState.widgetShape profile:oscProfile]; //reconstruct widgetView
+                OnScreenWidgetView* widgetView = [OnScreenWidgetView widgetWithCmdString:buttonState.name buttonLabel:buttonState.alias shape:buttonState.widgetShape profile:oscProfile]; //reconstruct widgetView
                 
                 widgetView.sequence = buttonState.sequence == -1 ? ++sequence : buttonState.sequence;
                 [OnScreenWidgetView setWithWidget:widgetView for:widgetView.sequence];
@@ -171,6 +169,7 @@ typedef NS_ENUM(NSUInteger, DecelerationRateSliderMode) {
                 widgetView.parentSequence = buttonState.parentSequence;
                 widgetView.folded = buttonState.folded;
                 widgetView.revealMode = buttonState.revealMode;
+                widgetView.bulkMoveEnabled = buttonState.bulkMoveEnabled;
                 
                 widgetView.guidelineDelegate = (id<OnScreenWidgetGuidelineUpdateDelegate>)self;
                 widgetView.translatesAutoresizingMaskIntoConstraints = NO; // weird but this is mandatory, or you will find no key views added to the right place
@@ -323,14 +322,14 @@ typedef NS_ENUM(NSUInteger, DecelerationRateSliderMode) {
                                                object:nil];
     
     [[NSNotificationCenter defaultCenter] addObserver:self
-                                             selector:@selector(handleProfileTablViewDismiss)
-                                                 name:@"OscLayoutTableViewCloseNotification"
+                                             selector:@selector(handleProfileSelectorDismiss)
+                                                 name:@"ProfileSelectorCloseNotification"
                                                object:nil];
     
     
     [[NSNotificationCenter defaultCenter] addObserver:self
                                              selector:@selector(dummytest)
-                                                 name:@"OscLayoutProfileSelctedInTableView"   // This is a special notification for reloading the on screen keyboard buttons. which can't be executed by _oscProfilesTableViewController.needToUpdateOscLayoutTVC code block, and has to be triggered by a notification
+                                                 name:@"OscLayoutProfileSelectedNotification"   // This is a special notification for reloading the on screen keyboard buttons. It has to be triggered by a notification because it cannot be handled by the profile selector dismiss block.
                                                object:nil];
     
     [[NSNotificationCenter defaultCenter] addObserver:self
@@ -365,7 +364,7 @@ typedef NS_ENUM(NSUInteger, DecelerationRateSliderMode) {
     selectedWidgetView = nil;
     selectedControllerLayer = nil;
 
-    _oscProfilesTableViewController.layoutViewBounds = self.view.bounds;
+    _profileSelectorViewController.layoutViewBounds = self.view.bounds;
     [OSCProfilesManager setLayoutViewBounds:self.view.bounds];
     [OSCProfilesManager setOnScreenWidgetViewsSet:self.onScreenWidgetViews];   // pass the keyboard button dict to profiles manager
     
@@ -658,6 +657,19 @@ typedef NS_ENUM(NSUInteger, DecelerationRateSliderMode) {
 }
 
 - (IBAction) addTapped:(id)sender{
+    GenericUtils.autoPopSoftKeyboard = false;
+
+    if (@available(iOS 13.0, *)) {
+        WidgetPickerViewController *pickerViewController = [[WidgetPickerViewController alloc] init];
+        pickerViewController.delegate = self;
+        pickerViewController.tabIdentifiers = @[@"gamepad", @"keyboard", @"functional", @"shortcuts"];
+        pickerViewController.initialTabIdentifier = @"gamepad";
+
+        UINavigationController *navigationController = [[UINavigationController alloc] initWithRootViewController:pickerViewController];
+        navigationController.modalPresentationStyle = UIModalPresentationOverFullScreen;
+        [self presentViewController:navigationController animated:YES completion:nil];
+        return;
+    }
     
     NSMutableDictionary* widgetInitParams = [NSMutableDictionary dictionary];
 
@@ -666,24 +678,51 @@ typedef NS_ENUM(NSUInteger, DecelerationRateSliderMode) {
                                                                       preferredStyle:UIAlertControllerStyleAlert];
     
     [alertController addTextFieldWithConfigurationHandler:^(UITextField *textField) {
-        textField.placeholder = [LocalizationHelper localizedStringForKey:@"Command"];
+        UILabel *label = [[UILabel alloc] init];
+        label.text = [LocalizationHelper localizedStringForKey:@"Command: "];
+        label.font = [UIFont systemFontOfSize:15];
+        [label sizeToFit];
+        textField.leftView = label;
+        textField.leftViewMode = UITextFieldViewModeAlways;
+        textField.attributedPlaceholder = [GenericUtils getAtrributedPlaceHolderWithText:[LocalizationHelper localizedStringForKey:@"e.g. ctrl, lswheel, wasdpad..."]];
+        
+        textField.font = [UIFont systemFontOfSize:15];
         textField.keyboardType = UIKeyboardTypeASCIICapable;
         textField.autocorrectionType = UITextAutocorrectionTypeNo;
         textField.spellCheckingType = UITextSpellCheckingTypeNo;
+        textField.delegate = self;
     }];
     
     [alertController addTextFieldWithConfigurationHandler:^(UITextField *textField) {
-        textField.placeholder = [LocalizationHelper localizedStringForKey:@"Alias label (optional)"];
+        UILabel *label = [[UILabel alloc] init];
+        label.text = [LocalizationHelper localizedStringForKey:@"Label: "];
+        label.font = [UIFont systemFontOfSize:15];
+        [label sizeToFit];
+        textField.leftView = label;
+        textField.leftViewMode = UITextFieldViewModeAlways;
+        textField.attributedPlaceholder = [GenericUtils getAtrributedPlaceHolderWithText:[LocalizationHelper localizedStringForKey:@"optional"]];
+        
+        textField.font = [UIFont systemFontOfSize:15];
         textField.keyboardType = UIKeyboardTypeDefault;
         textField.autocorrectionType = UITextAutocorrectionTypeNo;
         textField.spellCheckingType = UITextSpellCheckingTypeNo;
+        textField.delegate = self;
     }];
     
     [alertController addTextFieldWithConfigurationHandler:^(UITextField *textField) {
-        textField.placeholder = [LocalizationHelper localizedStringForKey:@"Shape (r - round, s - square)"];
+        UILabel *label = [[UILabel alloc] init];
+        label.text = [LocalizationHelper localizedStringForKey:@"Shape: "];
+        label.font = [UIFont systemFontOfSize:15];
+        [label sizeToFit];
+        textField.leftView = label;
+        textField.leftViewMode = UITextFieldViewModeAlways;
+        textField.attributedPlaceholder = [GenericUtils getAtrributedPlaceHolderWithText:[LocalizationHelper localizedStringForKey:@"r - round/circle, s - square/rect"]];
+        
+        textField.font = [UIFont systemFontOfSize:15];
         textField.keyboardType = UIKeyboardTypeASCIICapable;
         textField.autocorrectionType = UITextAutocorrectionTypeNo;
         textField.spellCheckingType = UITextSpellCheckingTypeNo;
+        textField.delegate = self;
     }];
 
 
@@ -716,8 +755,27 @@ typedef NS_ENUM(NSUInteger, DecelerationRateSliderMode) {
     [self presentViewController:alertController animated:YES completion:nil];
 }
 
+- (void)widgetPickerViewController:(WidgetPickerViewController *)controller didCreateWidget:(NSDictionary *)payload {
+    NSMutableDictionary *widgetInitParams = [payload mutableCopy];
+    NSString *pickerAction = [widgetInitParams[@"pickerAction"] lowercaseString];
+    [widgetInitParams removeObjectForKey:@"pickerAction"];
+
+    if ([pickerAction isEqualToString:@"modify"] && self->selectedWidgetView != nil) {
+        [self updateWidget:self->selectedWidgetView byParams:widgetInitParams createNew:false];
+        return;
+    }
+
+    if ([pickerAction isEqualToString:@"create"] && controller.isEditMode && self->selectedWidgetView != nil) {
+        [self updateWidget:self->selectedWidgetView byParams:widgetInitParams createNew:true];
+        return;
+    }
+
+    [self createWidgetFromParams:widgetInitParams];
+}
+
 
 - (IBAction) editTapped:(id)sender{
+    GenericUtils.autoPopSoftKeyboard = false;
     
     NSMutableDictionary* widgetInitParams = [NSMutableDictionary dictionary];
 
@@ -725,29 +783,83 @@ typedef NS_ENUM(NSUInteger, DecelerationRateSliderMode) {
                                                                              message:[LocalizationHelper localizedStringForKey:@"Edit Selected Widget"]
                                                                       preferredStyle:UIAlertControllerStyleAlert];
     
-    if(self->selectedWidgetView == nil) return;
+    if(self->selectedWidgetView == nil) {
+        AlertControllerUtil.autoCompletion = true;
+        [AlertControllerUtil showAlertIn:self
+                                        title:@""
+                                      message:[LocalizationHelper localizedStringForKey:@"No widget selected"]
+                                   withCancel:NO
+                                  buttonTitle:@""
+                                    countdown:1
+                                       action:^{}
+                                   completion:^{}];
+        return;
+    };
+
+    if (@available(iOS 13.0, *)) {
+        WidgetPickerViewController *pickerViewController = [[WidgetPickerViewController alloc] init];
+        pickerViewController.delegate = self;
+        pickerViewController.tabIdentifiers = @[@"gamepad", @"keyboard", @"functional", @"shortcuts"];
+        pickerViewController.initialTabIdentifier = @"gamepad";
+        pickerViewController.isEditMode = true;
+        pickerViewController.initialCmdString = self->selectedWidgetView.cmdString;
+        pickerViewController.initialButtonLabel = self->selectedWidgetView.widgetLabel;
+        pickerViewController.initialShape = self->selectedWidgetView.shape;
+
+        UINavigationController *navigationController = [[UINavigationController alloc] initWithRootViewController:pickerViewController];
+        navigationController.modalPresentationStyle = UIModalPresentationOverFullScreen;
+        [self presentViewController:navigationController animated:YES completion:nil];
+        return;
+    }
     
     [alertController addTextFieldWithConfigurationHandler:^(UITextField *textField) {
-        textField.placeholder = [LocalizationHelper localizedStringForKey:@"Command"];
+        UILabel *label = [[UILabel alloc] init];
+        label.text = [LocalizationHelper localizedStringForKey:@"Command: "];
+        label.font = [UIFont systemFontOfSize:15];
+        [label sizeToFit];
+        textField.leftView = label;
+        textField.leftViewMode = UITextFieldViewModeAlways;
+        textField.attributedPlaceholder = [GenericUtils getAtrributedPlaceHolderWithText:[LocalizationHelper localizedStringForKey:@"e.g. ctrl, lswheel, wasdpad..."]];
+        
+        textField.font = [UIFont systemFontOfSize:15];
         textField.keyboardType = UIKeyboardTypeASCIICapable;
         textField.autocorrectionType = UITextAutocorrectionTypeNo;
         textField.spellCheckingType = UITextSpellCheckingTypeNo;
+        textField.delegate = self;
         textField.text = [self->selectedWidgetView.cmdString lowercaseString];
     }];
     
     [alertController addTextFieldWithConfigurationHandler:^(UITextField *textField) {
-        textField.placeholder = [LocalizationHelper localizedStringForKey:@"Alias label (optional)"];
+        UILabel *label = [[UILabel alloc] init];
+        label.text = [LocalizationHelper localizedStringForKey:@"Label: "];
+        label.font = [UIFont systemFontOfSize:15];
+        [label sizeToFit];
+        textField.leftView = label;
+        textField.leftViewMode = UITextFieldViewModeAlways;
+        textField.attributedPlaceholder = [GenericUtils getAtrributedPlaceHolderWithText:[LocalizationHelper localizedStringForKey:@"optional"]];
+        
+        textField.font = [UIFont systemFontOfSize:15];
         textField.keyboardType = UIKeyboardTypeDefault;
         textField.autocorrectionType = UITextAutocorrectionTypeNo;
         textField.spellCheckingType = UITextSpellCheckingTypeNo;
+        textField.delegate = self;
         textField.text = self->selectedWidgetView.widgetLabel;
     }];
         
     [alertController addTextFieldWithConfigurationHandler:^(UITextField *textField) {
-        textField.placeholder = [LocalizationHelper localizedStringForKey:@"Shape (r - round, s - square)"];
+        UILabel *label = [[UILabel alloc] init];
+        label.text = [LocalizationHelper localizedStringForKey:@"Shape: "];
+        label.font = [UIFont systemFontOfSize:15];
+        [label sizeToFit];
+        textField.leftView = label;
+        textField.leftViewMode = UITextFieldViewModeAlways;
+        textField.attributedPlaceholder = [GenericUtils getAtrributedPlaceHolderWithText:[LocalizationHelper localizedStringForKey:@"r - round/circle, s - square/rect"]];
+        
+        textField.font = [UIFont systemFontOfSize:15];
         textField.keyboardType = UIKeyboardTypeASCIICapable;
         textField.autocorrectionType = UITextAutocorrectionTypeNo;
         textField.spellCheckingType = UITextSpellCheckingTypeNo;
+        textField.delegate = self;
         textField.text = self->selectedWidgetView.shape;
         if([self->selectedWidgetView.shape isEqualToString: @"largeSquare"]) textField.enabled = false;
     }];
@@ -813,9 +925,10 @@ typedef NS_ENUM(NSUInteger, DecelerationRateSliderMode) {
 - (void) updateWidget:(OnScreenWidgetView* )widget byParams:(NSMutableDictionary* )widgetInitParams createNew:(bool)createNew{
     if(![self isWidgetParamsValid:widgetInitParams]) return;
     OSCProfile* profile = [[OSCProfilesManager sharedManager:CGRectZero] getSelectedProfile];
-    OnScreenWidgetView* newWidget = [[OnScreenWidgetView alloc] initWithCmdString:widgetInitParams[@"cmdString"] buttonLabel:widgetInitParams[@"buttonLabel"] shape:widgetInitParams[@"shape"] profile:profile]; //reconstruct widgetView
+    OnScreenWidgetView* newWidget = [OnScreenWidgetView widgetWithCmdString:widgetInitParams[@"cmdString"] buttonLabel:widgetInitParams[@"buttonLabel"] shape:widgetInitParams[@"shape"] profile:profile]; //reconstruct widgetView
     newWidget.sequence = widget.sequence;
     newWidget.revealMode = widget.revealMode;
+    newWidget.bulkMoveEnabled = widget.bulkMoveEnabled;
     newWidget.guidelineDelegate = (id<OnScreenWidgetGuidelineUpdateDelegate>)self;
     newWidget.translatesAutoresizingMaskIntoConstraints = NO; // weird but this is mandatory, or you will find no key views added to the right place
     newWidget.widthFactor = widget.widthFactor;
@@ -877,7 +990,7 @@ typedef NS_ENUM(NSUInteger, DecelerationRateSliderMode) {
     if(![self isWidgetParamsValid:widgetInitParams]) return;
     //saving & present the keyboard button:
     OSCProfile* profile = [[OSCProfilesManager sharedManager:CGRectZero] getSelectedProfile];
-    OnScreenWidgetView* widgetView = [[OnScreenWidgetView alloc] initWithCmdString:widgetInitParams[@"cmdString"] buttonLabel:widgetInitParams[@"buttonLabel"] shape:widgetInitParams[@"shape"] profile:profile];
+    OnScreenWidgetView* widgetView = [OnScreenWidgetView widgetWithCmdString:widgetInitParams[@"cmdString"] buttonLabel:widgetInitParams[@"buttonLabel"] shape:widgetInitParams[@"shape"] profile:profile];
     [self.view insertSubview:widgetView belowSubview:self.widgetPanelStack];
     widgetView.hidden = true;
     widgetView.sequence = [widgetView getAvailableSequence];
@@ -895,6 +1008,7 @@ typedef NS_ENUM(NSUInteger, DecelerationRateSliderMode) {
 
 /* show pop up notification that lets users choose to save the current OSC layout configuration as a profile they can load when they want. User can also choose to cancel out of this pop up */
 - (IBAction) saveTapped:(id)sender {
+    
     /*
     OSCProfile* targetProfile = [profilesManager getAllProfiles][0];
     OSCProfile* currentProfile = [profilesManager getSelectedProfile];
@@ -915,7 +1029,7 @@ typedef NS_ENUM(NSUInteger, DecelerationRateSliderMode) {
     else{
         UIAlertController * savedAlertController = [UIAlertController alertControllerWithTitle: [NSString stringWithFormat:@""] message: [LocalizationHelper localizedStringForKey:@"Profile Default can not be overwritten"] preferredStyle:UIAlertControllerStyleAlert];
         [savedAlertController addAction:[UIAlertAction actionWithTitle:[LocalizationHelper localizedStringForKey:@"Ok"] style:UIAlertActionStyleDefault handler:^(UIAlertAction *action) {
-            [self.oscProfilesTableViewController profileViewRefresh]; // execute this will reset layout in OSC tool!
+            [self.profileSelectorViewController profileViewRefresh]; // execute this will reset layout in OSC tool!
         }]];
         if(sender) [self presentViewController:savedAlertController animated:YES completion:nil];
     }
@@ -1136,6 +1250,9 @@ typedef NS_ENUM(NSUInteger, DecelerationRateSliderMode) {
     [self.collectedWidgetsSelector setSelectedSegmentIndex:selectedWidgetView.folded ? 1 :0];
     [self.revealModeSelector setSelectedSegmentIndex:selectedWidgetView.revealMode];
     [OnScreenWidgetView setWithFolded:selectedWidgetView.folded for:selectedWidgetView];
+    
+    self.bulkMoveStack.hidden = !selectedWidgetView.isFolder;
+    [self.bulkMoveSelector setSelectedSegmentIndex:selectedWidgetView.bulkMoveEnabled];
 
     [self autoFitStack:self.widgetPanelStack];
     
@@ -1305,6 +1422,12 @@ typedef NS_ENUM(NSUInteger, DecelerationRateSliderMode) {
     }
 }
 
+- (void)bulkMoveChanged:(UISegmentedControl* )sender{
+    if(self->selectedWidgetView != nil && self->widgetViewSelected){
+        selectedWidgetView.bulkMoveEnabled = sender.selectedSegmentIndex == 1;
+    }
+}
+
 - (void)revealModeChanged:(UISegmentedControl* )sender{
     if(self->selectedWidgetView != nil && self->widgetViewSelected){
         selectedWidgetView.revealMode = sender.selectedSegmentIndex;
@@ -1453,7 +1576,6 @@ typedef NS_ENUM(NSUInteger, DecelerationRateSliderMode) {
     selectedWidgetView.touchBeganLocation = CGPointMake(CGRectGetWidth(selectedWidgetView.frame)/2, CGRectGetHeight(selectedWidgetView.frame)/4);
     [selectedWidgetView showStickIndicator];
 }
-
 
 - (void)handleMissingToolBarIcon:(UIView *)view {
     for (UIView *subview in view.subviews) {
@@ -1627,6 +1749,10 @@ typedef NS_ENUM(NSUInteger, DecelerationRateSliderMode) {
     [self.revealModeSelector addTarget:self action:@selector(revealModeChanged:) forControlEvents:(UIControlEventValueChanged)];
     [self.revealModeSelector setTitleTextAttributes:whiteFontAttributes forState:UIControlStateNormal];
     self.collectedWidgetsStack.hidden = YES;
+    
+    [self.bulkMoveSelector addTarget:self action:@selector(bulkMoveChanged:) forControlEvents:(UIControlEventValueChanged)];
+    [self.bulkMoveSelector setTitleTextAttributes:whiteFontAttributes forState:UIControlStateNormal];
+    self.bulkMoveStack.hidden = YES;
 
     if([self isIPhone]){
         [self.vibrationStyleSelector addTarget:self action:@selector(vibrationStyleChanged:) forControlEvents:(UIControlEventValueChanged)];
@@ -1671,10 +1797,22 @@ typedef NS_ENUM(NSUInteger, DecelerationRateSliderMode) {
     }
 }
 
+// UITextFieldDelegate
 - (BOOL)textFieldShouldReturn:(UITextField *)textField {
-    [textField resignFirstResponder]; // 收起键盘
-    [selectedWidgetView setAutoTapIntervalByTextWithStr:textField.text];
+    if(textField == _autoTapField){
+        [textField resignFirstResponder]; // 收起键盘
+        [selectedWidgetView setAutoTapIntervalByTextWithStr:textField.text];
+    }
     return YES;
+}
+
+- (BOOL)textFieldShouldBeginEditing:(UITextField *)textField {
+    if (GenericUtils.autoPopSoftKeyboard) {
+        return YES;
+    } else {
+        GenericUtils.autoPopSoftKeyboard = YES;
+        return NO;
+    }
 }
 
 - (void)applyShadowForiOS13:(UIStackView* )stack {
@@ -1725,7 +1863,7 @@ typedef NS_ENUM(NSUInteger, DecelerationRateSliderMode) {
     return ([UIDevice currentDevice].userInterfaceIdiom == UIUserInterfaceIdiomPhone);
 }
 
-- (void)handleProfileTablViewDismiss{
+- (void)handleProfileSelectorDismiss{
     if(_quickSwitchEnabled){
         [self clearOnScreenWidgets];
         [self dismissViewControllerAnimated:NO completion:^{
@@ -1738,71 +1876,55 @@ typedef NS_ENUM(NSUInteger, DecelerationRateSliderMode) {
 /* Basically the same method as loadTapped, without parameter*/
 // Make sure whenever self view controller load the selected profile and layout its buttons.
 - (void)profileRefresh{
-    UIStoryboard *storyboard;
-    BOOL isIPhone = ([UIDevice currentDevice].userInterfaceIdiom == UIUserInterfaceIdiomPhone);
-    if (isIPhone) {
-        storyboard = [UIStoryboard storyboardWithName:@"iPhone" bundle:nil];
-    }
-    else {
-        storyboard = [UIStoryboard storyboardWithName:@"iPad" bundle:nil];
-    }
-        
-    //initialiaze _oscProfilesTableViewController
-    self->_oscProfilesTableViewController = [storyboard instantiateViewControllerWithIdentifier:@"OSCProfilesTableViewController"];
+    // initialiaze _profileSelectorViewController
+    self->_profileSelectorViewController = [[ProfileSelectorViewController alloc] init];
+    self->_profileSelectorViewController.layoutViewBounds = self.view.bounds;
     
     //this part is just for registration, will not be immediately executed.
     __weak typeof(self) weakSelf = self;
-    self->_oscProfilesTableViewController.needToUpdateOscLayoutTVC = ^() {   // a block that will be called when the modally presented 'OSCProfilesTableViewController' VC is dismissed. By the time the 'OSCProfilesTableViewController' VC is dismissed the user would have potentially selected a different OSC profile with a different layout and they want to see this layout on this 'LayoutOnScreenControlsViewController.' This block of code will load the profile and then hide/show and move each OSC button to their appropriate position
+    self->_profileSelectorViewController.needToUpdateOscLayoutTVC = ^() {   // a block that will be called when the modally presented 'ProfileSelectorViewController' VC is dismissed. By the time it is dismissed the user would have potentially selected a different OSC profile with a different layout and they want to see this layout on this 'LayoutOnScreenControlsViewController.' This block of code will load the profile and then hide/show and move each OSC button to their appropriate position
         __strong typeof(weakSelf) strongSelf = weakSelf;
         if (!strongSelf) return;
         [weakSelf reloadOnScreenWidgetViews];
-        strongSelf->_oscProfilesTableViewController.currentOSCButtonLayers = weakSelf.layoutOSC.OSCButtonLayerPool; //pass updated OSCLayout to OSCProfileTableView again
+        strongSelf->_profileSelectorViewController.currentOSCButtonLayers = weakSelf.layoutOSC.OSCButtonLayerPool; // pass updated OSCLayout to profile selector again
     };
     
-    [self.oscProfilesTableViewController profileViewRefresh]; // execute this will make sure OSCLayout is updated from persisted profile, not any cache.
+    [self reloadOnScreenWidgetViews];
+
     NSLog(@"profileRefresh %f", CACurrentMediaTime());
     // [self reloadOnScreenWidgetViews];
 
     // [self presentViewController:vc animated:YES completion:nil];
 }
 
-- (void) presentProfilesTableViewWithPickProfile:(bool)pickProfile{
+- (void) presentProfileSelectorWithPickProfile:(bool)pickProfile{
     [self hideStickIndicators];
     selectedWidgetView = nil;
     // if(pickProfile) [self clearOnScreenWidgets];
-    
-    UIStoryboard *storyboard;
-    BOOL isIPhone = ([UIDevice currentDevice].userInterfaceIdiom == UIUserInterfaceIdiomPhone);
-    if (isIPhone) {
-        storyboard = [UIStoryboard storyboardWithName:@"iPhone" bundle:nil];
-    }
-    else {
-        storyboard = [UIStoryboard storyboardWithName:@"iPad" bundle:nil];
-    }
-    
-    _oscProfilesTableViewController = [storyboard instantiateViewControllerWithIdentifier:@"OSCProfilesTableViewController"];
-    _oscProfilesTableViewController.layoutViewBounds = self.view.bounds;
+
+    _profileSelectorViewController = [[ProfileSelectorViewController alloc] init];
+    _profileSelectorViewController.layoutViewBounds = self.view.bounds;
     
     __weak typeof(self) weakSelf = self;
-    _oscProfilesTableViewController.needToUpdateOscLayoutTVC = ^() {   // a block that will be called when the modally presented 'OSCProfilesTableViewController' VC is dismissed. By the time the 'OSCProfilesTableViewController' VC is dismissed the user would have potentially selected a different OSC ofile with a different layout and they want to see this layout on this 'LayoutOnScreenControlsViewController.' This block of code will load the proffile and then hide/show and move each OSC button to their appropriate position
+    _profileSelectorViewController.needToUpdateOscLayoutTVC = ^() {   // a block that will be called when the modally presented 'ProfileSelectorViewController' VC is dismissed. By the time it is dismissed the user would have potentially selected a different OSC profile with a different layout and they want to see this layout on this 'LayoutOnScreenControlsViewController.' This block of code will load the profile and then hide/show and move each OSC button to their appropriate position
         if(!pickProfile) [weakSelf reloadOnScreenWidgetViews];
     };
 
     self.widgetPanelStack.hidden = YES;
     
-    _oscProfilesTableViewController.currentOSCButtonLayers = self.layoutOSC.OSCButtonLayerPool;
+    _profileSelectorViewController.currentOSCButtonLayers = self.layoutOSC.OSCButtonLayerPool;
     
-    // _oscProfilesTableViewController.modalPresentationStyle = UIModalPresentationCurrentContext;
-    _oscProfilesTableViewController.modalPresentationStyle = UIModalPresentationOverCurrentContext;
-    // _oscProfilesTableViewController.modalPresentationStyle = UIModalPresentationPageSheet;
-    _oscProfilesTableViewController.pickProfileEnabled = pickProfile;
-    [self presentViewController:_oscProfilesTableViewController animated:NO completion:nil];
+    // _profileSelectorViewController.modalPresentationStyle = UIModalPresentationCurrentContext;
+    _profileSelectorViewController.modalPresentationStyle = UIModalPresentationOverCurrentContext;
+    // _profileSelectorViewController.modalPresentationStyle = UIModalPresentationPageSheet;
+    _profileSelectorViewController.pickProfileEnabled = pickProfile;
+    [self presentViewController:_profileSelectorViewController animated:NO completion:nil];
 }
 
 /* Presents the view controller that lists all OSC profiles the user can choose from */
 - (IBAction) loadTapped:(id)sender {
     [self saveTapped:nil];
-    [self presentProfilesTableViewWithPickProfile:false];
+    [self presentProfileSelectorWithPickProfile:false];
 }
 
 
@@ -1941,7 +2063,7 @@ typedef NS_ENUM(NSUInteger, DecelerationRateSliderMode) {
     if([profilesManager getIndexOfSelectedProfile] == 0 && [self.layoutOSC.layoutChanges count] > 0){
         UIAlertController * movedAlertController = [UIAlertController alertControllerWithTitle: [NSString stringWithFormat:@""] message: [LocalizationHelper localizedStringForKey:@"Layout of the Default profile can not be changed"] preferredStyle:UIAlertControllerStyleAlert];
         [movedAlertController addAction:[UIAlertAction actionWithTitle:[LocalizationHelper localizedStringForKey:@"Ok"] style:UIAlertActionStyleDefault handler:^(UIAlertAction *action) {
-            [self.oscProfilesTableViewController profileViewRefresh];
+            [self.profileSelectorViewController profileViewRefresh];
         }]];
         [self presentViewController:movedAlertController animated:YES completion:nil];
     }
